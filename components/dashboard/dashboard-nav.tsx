@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, Banknote } from 'lucide-react';
+import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useRouter } from 'next/navigation';
@@ -48,7 +48,6 @@ export function DashboardNav() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/transaction", label: "Transactions", icon: Wallet },
-    { href: "/dashboard/investment", label: "Investments", icon: Banknote },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
     ...(isAdmin ? [{ href: "/admin", label: "Admin Panel", icon: Users }] : []),
   ];

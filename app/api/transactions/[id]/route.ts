@@ -2,13 +2,18 @@ import { connectDB } from '@/lib/mongodb/db';
 import { getCurrentUser } from '@/lib/auth/session';
 import { Transaction } from '@/lib/mongodb/models/Transaction';
 import { NextRequest, NextResponse } from 'next/server';
-import { Types } from 'mongoose';
+
+type RouteParams = {
+  params: Promise<{ id: string }>;
+};
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
+    const { id } = await params;
+
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -17,7 +22,7 @@ export async function GET(
     await connectDB();
 
     const transaction = await Transaction.findOne({
-      _id: params.id,
+      _id: id, 
       userId: currentUser.userId,
     });
 
@@ -34,9 +39,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
+    const { id } = await params;
+
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -48,7 +55,7 @@ export async function PUT(
 
     const transaction = await Transaction.findOneAndUpdate(
       {
-        _id: params.id,
+        _id: id,
         userId: currentUser.userId,
       },
       {
@@ -74,9 +81,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
+    const { id } = await params;
+
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -85,7 +94,7 @@ export async function DELETE(
     await connectDB();
 
     const transaction = await Transaction.findOneAndDelete({
-      _id: params.id,
+      _id: id,
       userId: currentUser.userId,
     });
 

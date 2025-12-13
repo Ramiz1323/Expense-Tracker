@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const data = await request.json();
-    console.log(data)
+    
     const {
       category,
       description,

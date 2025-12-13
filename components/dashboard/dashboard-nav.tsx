@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote } from 'lucide-react';
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+// 1. Added SheetDescription to imports
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useRouter } from 'next/navigation';
 
 export function DashboardNav() {
@@ -115,8 +116,13 @@ export function DashboardNav() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-64">
-            {/* ADDED THIS LINE FOR ACCESSIBILITY */}
-            <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle> 
+            <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
+            
+            {/* 2. Added SheetDescription here (hidden from view but available to screen readers) */}
+            <SheetDescription className="sr-only">
+              Main navigation menu for mobile devices
+            </SheetDescription>
+            
             <NavContent />
           </SheetContent>
         </Sheet>

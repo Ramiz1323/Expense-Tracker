@@ -22,7 +22,7 @@ export async function GET(
     await connectDB();
 
     const transaction = await Transaction.findOne({
-      _id: id, 
+      _id: id,
       userId: currentUser.userId,
     });
 

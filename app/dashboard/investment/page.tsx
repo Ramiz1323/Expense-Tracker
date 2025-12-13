@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Trash2, Calendar, TrendingUp, Wallet } from "lucide-react";
+import { Plus, Trash2, Calendar, TrendingUp, Wallet, SquarePen } from "lucide-react";
 
 interface Investment {
   _id: string;
@@ -37,6 +37,9 @@ interface Investment {
 const TYPES = ["Stocks", "Mutual Funds", "Gold", "Real Estate", "Crypto", "Other"];
 
 export default function InvestmentPage() {
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -76,7 +79,7 @@ export default function InvestmentPage() {
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleSubmitInvestment = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -85,21 +88,31 @@ export default function InvestmentPage() {
       return;
     }
 
+    const payload = {
+      ...formData,
+      amount: parseFloat(formData.amount),
+      expectedReturnRate: parseFloat(formData.expectedReturnRate) || 0,
+      expectedEndDate: formData.expectedEndDate || null,
+    };
+
     try {
-      const res = await fetch("/api/investments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          amount: parseFloat(formData.amount),
-          expectedReturnRate: parseFloat(formData.expectedReturnRate) || 0,
-          expectedEndDate: formData.expectedEndDate || null,
-        }),
-      });
+      const res = await fetch(
+        isEditMode
+          ? `/api/investments/${editId}`
+          : `/api/investments`,
+        {
+          method: isEditMode ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!res.ok) throw new Error();
 
       setIsOpen(false);
+      setIsEditMode(false);
+      setEditId(null);
+
       setFormData({
         type: "oneTime",
         category: "",
@@ -107,14 +120,15 @@ export default function InvestmentPage() {
         amount: "",
         date: new Date().toISOString().split("T")[0],
         expectedReturnRate: "",
-        expectedEndDate: ""
+        expectedEndDate: "",
       });
 
       fetchInvestments();
     } catch {
-      setError("Failed to add investment");
+      setError("Failed to save investment");
     }
   };
+
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this investment?")) return;
@@ -232,6 +246,27 @@ export default function InvestmentPage() {
       year: "numeric",
     });
 
+
+  const handleEditInvestment = (inv: Investment) => {
+    setIsEditMode(true);
+    setEditId(inv._id);
+
+    setFormData({
+      type: inv.type,
+      category: inv.category,
+      description: inv.description || "",
+      amount: inv.amount.toString(),
+      date: inv.date.split("T")[0],
+      expectedReturnRate: inv.expectedReturnRate?.toString() || "",
+      expectedEndDate: inv.expectedEndDate
+        ? inv.expectedEndDate.split("T")[0]
+        : "",
+    });
+
+    setIsOpen(true);
+  };
+
+
   if (loading) return <div className="p-4">Loading...</div>;
 
   return (
@@ -272,12 +307,15 @@ export default function InvestmentPage() {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="rounded-2xl sm:max-w-md max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Investment</DialogTitle>
+            <DialogTitle>
+              {isEditMode ? "Edit Investment" : "Add Investment"}
+            </DialogTitle>
+
             <DialogDescription>Enter investment details</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4 mt-2">
+          <form onSubmit={handleSubmitInvestment} className="space-y-4 mt-2">
             {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Type</Label>
@@ -327,7 +365,10 @@ export default function InvestmentPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">Save Investment</Button>
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+              {isEditMode ? "Update Investment" : "Save Investment"}
+            </Button>
+
           </form>
         </DialogContent>
       </Dialog>
@@ -353,7 +394,7 @@ export default function InvestmentPage() {
               const months = monthDiff(start, new Date());
               const invested = inv.type === "recurring" ? inv.amount * months : inv.amount;
               const rate = inv.expectedReturnRate || 0;
-              const currentValue = rate > 0 
+              const currentValue = rate > 0
                 ? (inv.type === "oneTime" ? calculateOneTimeFV(inv.amount, rate, months) : calculateRecurringFV(inv.amount, rate, months))
                 : invested;
 
@@ -381,9 +422,26 @@ export default function InvestmentPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => handleDelete(inv._id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        onClick={() => handleEditInvestment(inv)}
+                      >
+                        <SquarePen className="w-4 h-4" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        onClick={() => handleDelete(inv._id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+
                   </td>
                 </tr>
               );
@@ -399,7 +457,7 @@ export default function InvestmentPage() {
           const months = monthDiff(start, new Date());
           const invested = inv.type === "recurring" ? inv.amount * months : inv.amount;
           const rate = inv.expectedReturnRate || 0;
-          const currentValue = rate > 0 
+          const currentValue = rate > 0
             ? (inv.type === "oneTime" ? calculateOneTimeFV(inv.amount, rate, months) : calculateRecurringFV(inv.amount, rate, months))
             : invested;
 
@@ -441,6 +499,15 @@ export default function InvestmentPage() {
                 <Button variant="ghost" size="sm" onClick={() => handleDelete(inv._id)} className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 p-2">
                   <Trash2 className="w-4 h-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-500"
+                  onClick={() => handleEditInvestment(inv)}
+                >
+                  <SquarePen className="w-4 h-4" /> Edit
+                </Button>
+
               </div>
             </div>
           );

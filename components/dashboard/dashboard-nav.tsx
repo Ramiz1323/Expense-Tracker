@@ -50,6 +50,7 @@ export function DashboardNav() {
     { href: "/dashboard/transaction", label: "Transactions", icon: Wallet },
     { href: "/dashboard/investment", label: "Investments", icon: Banknote },
     { href: "/dashboard/subscriptions", label: "Subscriptions", icon: CreditCard },
+    { href: "/dashboard/groups", label: "Split Bills", icon: Users },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
     ...(isAdmin ? [{ href: "/admin", label: "Admin Panel", icon: Users }] : []),
   ];

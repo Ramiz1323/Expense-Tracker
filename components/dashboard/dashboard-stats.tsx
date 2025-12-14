@@ -195,7 +195,7 @@ export function DashboardStats({ userId }: { userId: string }) {
                   {stats.chartData.map((item, index) => (
                     <div key={index} className="flex justify-between items-center text-sm">
                       <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.fill }}></div>
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill }}></div>
                         <span className="text-slate-600 dark:text-slate-300 truncate">{item.name}</span>
                       </div>
                       <span className="font-medium text-slate-900 dark:text-white">

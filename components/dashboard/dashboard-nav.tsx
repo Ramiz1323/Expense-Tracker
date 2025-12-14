@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote } from 'lucide-react';
+import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote, CreditCard } from 'lucide-react';
 import { useState, useEffect } from "react";
-// 1. Added SheetDescription to imports
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useRouter } from 'next/navigation';
 
@@ -50,6 +49,7 @@ export function DashboardNav() {
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/transaction", label: "Transactions", icon: Wallet },
     { href: "/dashboard/investment", label: "Investments", icon: Banknote },
+    { href: "/dashboard/subscriptions", label: "Subscriptions", icon: CreditCard },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
     ...(isAdmin ? [{ href: "/admin", label: "Admin Panel", icon: Users }] : []),
   ];

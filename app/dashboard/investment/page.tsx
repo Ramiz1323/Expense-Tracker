@@ -450,73 +450,83 @@ export default function InvestmentPage() {
         </table>
       </div>
 
-      {/* --- MOBILE VIEW (CARDS) --- */}
+      {/* MOBILE CARD STYLE */}
       <div className="md:hidden space-y-4">
         {sortedInvestments.map((inv) => {
-          const start = new Date(inv.date);
-          const months = monthDiff(start, new Date());
-          const invested = inv.type === "recurring" ? inv.amount * months : inv.amount;
+          const months = monthDiff(new Date(inv.date), new Date());
+          const invested =
+            inv.type === "recurring" ? inv.amount * months : inv.amount;
+
+
           const rate = inv.expectedReturnRate || 0;
-          const currentValue = rate > 0
-            ? (inv.type === "oneTime" ? calculateOneTimeFV(inv.amount, rate, months) : calculateRecurringFV(inv.amount, rate, months))
-            : invested;
+          const currentValue =
+            rate > 0
+              ? inv.type === "oneTime"
+                ? calculateOneTimeFV(inv.amount, rate, months)
+                : calculateRecurringFV(inv.amount, rate, months)
+              : invested;
+
 
           return (
-            <div key={inv._id} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <div className="flex justify-between items-start mb-3">
+            <div
+              key={inv._id}
+              className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4"
+            >
+              <div className="flex justify-between">
                 <div>
-                  <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">{inv.description || inv.category}</h3>
-                  <div className="flex gap-2 mt-1.5">
-                    <Badge variant="outline" className="text-[10px] h-5">{inv.type === "recurring" ? "Recurring" : "One-Time"}</Badge>
-                    <Badge variant="secondary" className="text-[10px] h-5">{inv.category}</Badge>
+                  <h3 className="font-semibold">
+                    {inv.description || inv.category}
+                  </h3>
+                  <div className="flex gap-2 mt-1">
+                    <Badge variant="secondary" className="text-xs">
+                      {inv.type}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {inv.category}
+                    </Badge>
                   </div>
                 </div>
+                <p className="font-bold text-blue-600">₹{inv.amount}</p>
+              </div>
+
+
+              <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Invested</p>
+                  <p className="font-semibold">₹{invested}</p>
+                </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                    {inv.type === "recurring" ? `₹${inv.amount.toLocaleString()}` : `₹${inv.amount.toLocaleString()}`}
+                  <p className="text-xs text-slate-500">Current</p>
+                  <p className="font-semibold text-green-600">
+                    ₹{currentValue.toFixed(0)}
                   </p>
-                  {inv.type === "recurring" && <p className="text-[10px] text-slate-400">per month</p>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 py-3 border-t border-b border-slate-100 dark:border-slate-800 my-3">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-medium flex items-center gap-1"><Wallet className="w-3 h-3" /> Invested</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">₹{invested.toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col gap-1 text-right">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-500 font-medium flex items-center justify-end gap-1"><TrendingUp className="w-3 h-3" /> Current Value</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">₹{currentValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                </div>
-              </div>
 
-              <div className="flex justify-between items-center pt-1">
-                <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>{formatDate(inv.date)}</span>
-                  {inv.expectedReturnRate > 0 && <span className="ml-2 text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded text-[10px] font-medium">{inv.expectedReturnRate}% ROI</span>}
+              <div className="flex justify-between items-center mt-4 text-xs text-slate-500">
+                <span>{formatDate(inv.date)}</span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-blue-500"
+                    onClick={() => handleEditInvestment(inv)}
+                  >
+                    <SquarePen className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(inv._id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(inv._id)} className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 p-2">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-500"
-                  onClick={() => handleEditInvestment(inv)}
-                >
-                  <SquarePen className="w-4 h-4" /> Edit
-                </Button>
-
               </div>
             </div>
           );
         })}
-        {sortedInvestments.length === 0 && (
-          <div className="text-center py-10 text-slate-500 dark:text-slate-400">
-            No investments found. Add one to get started!
-          </div>
-        )}
       </div>
     </div>
   );

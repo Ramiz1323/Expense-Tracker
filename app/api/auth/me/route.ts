@@ -31,6 +31,9 @@ export async function GET() {
         fullName: user.fullName,
         avatarUrl: user.avatarUrl,
         role: user.role,
+        faceAuth: {
+          enabled: user.faceAuth?.enabled!!
+        }
       },
     });
   } catch (error) {

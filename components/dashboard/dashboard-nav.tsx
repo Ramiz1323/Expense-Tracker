@@ -7,6 +7,7 @@ import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote, Cr
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function DashboardNav() {
   const pathname = usePathname();
@@ -19,11 +20,11 @@ export function DashboardNav() {
     const checkUserRole = async () => {
       try {
         const response = await fetch('/api/auth/me');
-        
+
         if (response.ok) {
           const data = await response.json();
           setUserEmail(data.user.email);
-          
+
           if (data.user.role === "admin") {
             setIsAdmin(true);
           }
@@ -59,9 +60,18 @@ export function DashboardNav() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">FinTrack</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Personal Finance Tracker</p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            FinTrack
+          </h1>
+          <ThemeToggle />
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          Personal Finance Tracker
+        </p>
       </div>
+
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
@@ -118,12 +128,12 @@ export function DashboardNav() {
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-64">
             <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
-            
+
             {/* 2. Added SheetDescription here (hidden from view but available to screen readers) */}
             <SheetDescription className="sr-only">
               Main navigation menu for mobile devices
             </SheetDescription>
-            
+
             <NavContent />
           </SheetContent>
         </Sheet>

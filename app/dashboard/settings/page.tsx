@@ -1,12 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import * as faceapi from "face-api.js";
+
+import {
+  User,
+  Shield,
+  Lock,
+  Trash2,
+  ScanFace,
+  Settings as SettingsIcon,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useRouter } from 'next/navigation';
 
 interface UserProfile {
   fullName: string;
@@ -15,17 +32,18 @@ interface UserProfile {
 }
 
 export default function SettingsPage() {
-  // Profile State
+  /* ------------------------ state ------------------------ */
   const [profile, setProfile] = useState<UserProfile>({
     fullName: "",
     email: "",
   });
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  // Password State
+  // Password
   const [passwords, setPasswords] = useState({
     currentPassword: "",
     newPassword: "",
@@ -35,33 +53,58 @@ export default function SettingsPage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
-  // Account Deletion State
-  const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  const router = useRouter();
+  // Face auth
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [faceAuthEnabled, setFaceAuthEnabled] = useState(false);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [camLoading, setCamLoading] = useState(false);
 
+  // Danger zone
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+
+  /* ------------------------ effects ------------------------ */
+
+  // Load face-api models
+  useEffect(() => {
+    const loadModels = async () => {
+      const MODEL_URL = "/models";
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+      setModelsLoaded(true);
+    };
+    loadModels();
+  }, []);
+
+  // Fetch profile
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch('/api/auth/me');
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            router.push('/auth/login');
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push("/auth/login");
             return;
           }
-          throw new Error('Failed to fetch profile');
+          throw new Error("Failed to fetch profile");
         }
 
-        const data = await response.json();
+        const data = await res.json();
         setProfile({
           fullName: data.user.fullName || "",
           email: data.user.email || "",
           avatarUrl: data.user.avatarUrl,
         });
+
+        setFaceAuthEnabled(Boolean(data.user.faceAuth?.enabled));
+
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(err instanceof Error ? err.message : "Error");
       } finally {
         setLoading(false);
       }
@@ -70,28 +113,54 @@ export default function SettingsPage() {
     fetchProfile();
   }, [router]);
 
+  // Stop camera on route change
+  useEffect(() => {
+    return () => stopCamera();
+  }, [pathname]);
+
+  /* ------------------------ helpers ------------------------ */
+
+  const startCamera = async () => {
+    if (!videoRef.current) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+      });
+
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setCameraReady(true);
+    } catch {
+      alert("Camera permission denied");
+    }
+  };
+
+  const stopCamera = () => {
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+    stream?.getTracks().forEach((t) => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
+  };
+
+  /* ------------------------ actions ------------------------ */
+
   const handleSaveProfile = async () => {
     setSaving(true);
     setError("");
     setMessage("");
 
     try {
-      const response = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: profile.fullName,
-        }),
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName: profile.fullName }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update profile');
-      }
-
-      setMessage("Profile updated successfully!");
-      setTimeout(() => setMessage(""), 3000);
+      if (!res.ok) throw new Error("Failed to update profile");
+      setMessage("Profile updated successfully");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "Error");
     } finally {
       setSaving(false);
     }
@@ -99,12 +168,7 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     if (passwords.newPassword !== passwords.confirmPassword) {
-      setPasswordError("New passwords do not match");
-      return;
-    }
-
-    if (passwords.newPassword.length < 6) {
-      setPasswordError("Password must be at least 6 characters long");
+      setPasswordError("Passwords do not match");
       return;
     }
 
@@ -113,218 +177,293 @@ export default function SettingsPage() {
     setPasswordMessage("");
 
     try {
-      const response = await fetch('/api/user/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword: passwords.currentPassword,
-          newPassword: passwords.newPassword,
-        }),
+      const res = await fetch("/api/user/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(passwords),
       });
 
-      const data = await response.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update password');
-      }
-
-      setPasswordMessage("Password changed successfully!");
-      setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setTimeout(() => setPasswordMessage(""), 3000);
+      setPasswordMessage("Password changed successfully");
+      setPasswords({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : 'An error occurred');
+      setPasswordError(err instanceof Error ? err.message : "Error");
     } finally {
       setPasswordSaving(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    setError("");
+  const registerFace = async () => {
+    if (faceAuthEnabled) {
+      alert("Face authentication is already enabled");
+      return;
+    }
+
+    if (!videoRef.current) return;
+
+    setCamLoading(true);
 
     try {
-      const response = await fetch('/api/user/delete', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const detection = await faceapi
+        .detectSingleFace(
+          videoRef.current,
+          new faceapi.TinyFaceDetectorOptions({
+            inputSize: 416,
+            scoreThreshold: 0.4,
+          })
+        )
+        .withFaceLandmarks()
+        .withFaceDescriptor();
 
-      if (!response.ok) {
-        throw new Error('Failed to delete account');
+      if (!detection) {
+        alert("No face detected");
+        return;
       }
 
-      // Logout and redirect to home
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete account');
-      setDeleting(false);
+      const res = await fetch("/api/user/face-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          descriptor: Array.from(detection.descriptor),
+        }),
+      });
+
+      if (res.status === 409) {
+        alert("This face is already linked to another account.");
+        setFaceAuthEnabled(false);
+        stopCamera();
+        return;
+      }
+
+
+      alert("Face authentication enabled");
+      setFaceAuthEnabled(true);
+      stopCamera();
+
+    } finally {
+      setCamLoading(false);
     }
   };
 
-  if (loading) {
-    return <div className="p-4 sm:p-6">Loading settings...</div>;
-  }
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    await fetch("/api/user/delete", { method: "DELETE" });
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+  };
+
+  if (loading) return <div className="p-6">Loading settings…</div>;
+
+  /* ------------------------ UI ------------------------ */
 
   return (
-    <div className="flex-1 space-y-4 lg:space-y-6 p-4 sm:p-6 pb-20">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-1">
-          Manage your account and preferences
-        </p>
+    <div className="flex-1 space-y-6 p-6 pb-24">
+      {/* HEADER */}
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 rounded-2xl text-white shadow-lg">
+        <div className="flex items-center gap-3">
+          <SettingsIcon className="h-7 w-7" />
+          <div>
+            <h1 className="text-2xl font-bold">Settings</h1>
+            <p className="text-sm opacity-90">
+              Manage your account, security and preferences
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-4 lg:gap-6 max-w-2xl">
-        {/* Profile Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg">Profile Information</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Update your personal details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
-              </Alert>
-            )}
-            {message && (
-              <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800">
-                <AlertDescription className="text-xs sm:text-sm">{message}</AlertDescription>
-              </Alert>
-            )}
+      {/* PROFILE */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5 text-emerald-600" />
+            Profile Information
+          </CardTitle>
+          <CardDescription>Personal details</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {message && (
+            <Alert className="bg-emerald-50 border-emerald-200">
+              <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={profile.email}
-                disabled
-                className="bg-slate-100 dark:bg-slate-800 text-sm"
-              />
-              <p className="text-xs text-slate-500">Your email cannot be changed</p>
-            </div>
+          <div>
+            <Label>Email</Label>
+            <Input value={profile.email} disabled />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-sm">Full Name</Label>
-              <Input
-                id="fullName"
-                value={profile.fullName}
-                onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                placeholder="John Doe"
-                className="text-sm"
-              />
-            </div>
+          <div>
+            <Label>Full Name</Label>
+            <Input
+              value={profile.fullName}
+              onChange={(e) =>
+                setProfile({ ...profile, fullName: e.target.value })
+              }
+            />
+          </div>
 
-            <Button onClick={handleSaveProfile} disabled={saving} className="w-full sm:w-auto">
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </CardContent>
-        </Card>
+          <Button
+            onClick={handleSaveProfile}
+            disabled={saving}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        </CardContent>
+      </Card>
 
-        {/* Security Settings (Password Reset) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg">Security</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Change your password</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {passwordError && (
-              <Alert variant="destructive">
-                <AlertDescription className="text-xs sm:text-sm">{passwordError}</AlertDescription>
-              </Alert>
-            )}
-            {passwordMessage && (
-              <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800">
-                <AlertDescription className="text-xs sm:text-sm">{passwordMessage}</AlertDescription>
-              </Alert>
-            )}
+      {/* SECURITY */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-emerald-600" />
+            Security
+          </CardTitle>
+          <CardDescription>Password management</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            placeholder="Current password"
+            type="password"
+            value={passwords.currentPassword}
+            onChange={(e) =>
+              setPasswords({ ...passwords, currentPassword: e.target.value })
+            }
+          />
+          <Input
+            placeholder="New password"
+            type="password"
+            value={passwords.newPassword}
+            onChange={(e) =>
+              setPasswords({ ...passwords, newPassword: e.target.value })
+            }
+          />
+          <Input
+            placeholder="Confirm password"
+            type="password"
+            value={passwords.confirmPassword}
+            onChange={(e) =>
+              setPasswords({ ...passwords, confirmPassword: e.target.value })
+            }
+          />
 
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwords.currentPassword}
-                onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
-                placeholder="••••••"
-              />
-            </div>
+          <Button onClick={handleChangePassword} disabled={passwordSaving}>
+            {passwordSaving ? "Updating…" : "Change Password"}
+          </Button>
 
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={passwords.newPassword}
-                onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
-                placeholder="••••••"
-              />
-            </div>
+          {passwordMessage && <p className="text-sm">{passwordMessage}</p>}
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
+        </CardContent>
+      </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={passwords.confirmPassword}
-                onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
-                placeholder="••••••"
-              />
-            </div>
+      {/* FACE AUTH */}
+      <Card className="border-l-4 border-l-emerald-500">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ScanFace className="h-5 w-5 text-emerald-600" />
+            Face Authentication
+          </CardTitle>
+        </CardHeader>
 
-            <Button 
-              onClick={handleChangePassword} 
-              disabled={passwordSaving || !passwords.currentPassword || !passwords.newPassword} 
-              className="w-full sm:w-auto"
-            >
-              {passwordSaving ? "Updating..." : "Change Password"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Danger Zone */}
-        <Card className="border-red-200 dark:border-red-900">
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg text-red-600">Danger Zone</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Irreversible actions</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {showDeleteConfirm ? (
-              <div className="space-y-4 p-4 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
-                <p className="text-sm font-semibold text-red-800 dark:text-red-200">
-                  Are you sure? This action cannot be undone. All your data will be permanently deleted.
-                </p>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteAccount} 
-                    disabled={deleting}
-                    className="flex-1"
-                  >
-                    {deleting ? "Deleting..." : "Yes, Delete My Account"}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                </div>
+        <CardContent className="space-y-4">
+          {/* ✅ ENABLED STATE */}
+          {faceAuthEnabled && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+              <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white">
+                ✓
               </div>
-            ) : (
-              <Button 
-                variant="destructive" 
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full sm:w-auto"
-              >
-                Delete Account
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <div>
+                <p className="font-medium text-emerald-800 dark:text-emerald-300">
+                  Face Authentication Enabled
+                </p>
+                <p className="text-sm text-emerald-700/80 dark:text-emerald-400">
+                  You can now log in using face authentication.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ❌ NOT ENABLED STATE */}
+          {!faceAuthEnabled && (
+            <>
+              <video
+                ref={videoRef}
+                className={`rounded-lg border mx-auto ${cameraReady ? "block" : "hidden"
+                  }`}
+                width={320}
+                height={240}
+                autoPlay
+                muted
+                playsInline
+              />
+
+              {!cameraReady && (
+                <Button
+                  variant="outline"
+                  onClick={startCamera}
+                  disabled={!modelsLoaded}
+                  className="w-full"
+                >
+                  {!modelsLoaded
+                    ? "Loading Face Models…"
+                    : "Start Face Registration"}
+                </Button>
+              )}
+
+              {cameraReady && (
+                <Button
+                  onClick={registerFace}
+                  disabled={camLoading}
+                  className="w-full"
+                >
+                  {camLoading ? "Registering…" : "Enable Face Authentication"}
+                </Button>
+              )}
+
+              <p className="text-xs text-muted-foreground text-center">
+                You can enable face authentication once.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* DANGER */}
+      <Card className="border-red-500 border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <Trash2 className="h-5 w-5" />
+            Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!showDeleteConfirm ? (
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete Account
+            </Button>
+          ) : (
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              {deleting ? "Deleting…" : "Confirm Delete"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

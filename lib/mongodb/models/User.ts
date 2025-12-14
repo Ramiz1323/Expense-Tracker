@@ -8,6 +8,10 @@ export interface IUser extends Document {
   role: 'user' | 'admin';
   createdAt: Date;
   updatedAt: Date;
+  faceAuth: {
+    enabled: boolean;
+    descriptor: Array<Number>;
+  };
 }
 
 const UserSchema = new Schema<IUser>(
@@ -40,6 +44,12 @@ const UserSchema = new Schema<IUser>(
       enum: ['user', 'admin'],
       default: 'user',
     },
+
+    faceAuth: {
+      enabled: { type: Boolean, default: false },
+      descriptor: { type: [Number] }, // Float32Array stored as array
+    }
+
   },
   {
     timestamps: true,

@@ -427,55 +427,70 @@ export default function TransactionPage() {
         )}
       </div>
 
-      {/* --- MOBILE VIEW (CARDS) --- */}
+      {/* MOBILE CARD STYLE */}
       <div className="md:hidden space-y-4">
         {sortedTransactions.map((t) => (
-          <div key={t._id} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex justify-between items-start mb-3">
+          <div
+            key={t._id}
+            className="rounded-2xl bg-white dark:bg-slate-900 border p-4"
+          >
+            <div className="flex justify-between">
               <div>
-                <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">{t.description || t.category}</h3>
-                <div className="flex gap-2 mt-1.5">
-                  <Badge variant={t.type === "income" ? "default" : "destructive"} className={`text-[10px] h-5 ${t.type === "income" ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300" : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"}`}>
-                    {t.type === "income" ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                <h3 className="font-semibold">
+                  {t.description || t.category}
+                </h3>
+                <div className="flex gap-2 mt-1">
+                  <Badge
+                    className={`text-xs ${t.type === "income"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-red-100 text-red-700"
+                      }`}
+                  >
                     {t.type}
                   </Badge>
-                  <Badge variant="secondary" className="text-[10px] h-5">{t.category}</Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {t.category}
+                  </Badge>
                 </div>
               </div>
-              <div className="text-right">
-                <p className={`text-lg font-bold ${t.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                  {t.type === "income" ? "+" : "-"} ₹{Math.abs(t.amount).toLocaleString()}
-                </p>
-              </div>
+              <p
+                className={`text-lg font-bold ${t.type === "income"
+                    ? "text-emerald-600"
+                    : "text-red-600"
+                  }`}
+              >
+                {t.type === "income" ? "+" : "-"} ₹
+                {Math.abs(t.amount).toLocaleString()}
+              </p>
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800 mt-2">
-              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>{formatDate(t.date)}</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => handleDeleteTransaction(t._id)} className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 p-2">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-blue-500"
-                onClick={() => handleEditTransaction(t)}
-              >
-                <SquarePen className="w-4 h-4" /> Edit
-              </Button>
 
+            <div className="flex justify-between items-center mt-4 text-xs text-slate-500">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                {formatDate(t.date)}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={"text-blue-500"}
+                  onClick={() => handleEditTransaction(t)}
+                >
+                  <SquarePen className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteTransaction(t._id)}
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </Button>
+              </div>
             </div>
           </div>
         ))}
-        {sortedTransactions.length === 0 && (
-          <div className="text-center py-10 text-slate-500 dark:text-slate-400">
-            No transactions found. Add one to get started!
-          </div>
-        )}
       </div>
-
     </div>
   );
 }

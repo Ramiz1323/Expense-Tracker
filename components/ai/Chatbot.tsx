@@ -126,7 +126,7 @@ export function Chatbot() {
                   )}
                 >
                   {message.sender === "bot" && (
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
                       <Bot className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     </div>
                   )}
@@ -147,7 +147,7 @@ export function Chatbot() {
                     </span>
                   </div>
                   {message.sender === "user" && (
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                       <User className="h-4 w-4 text-slate-600 dark:text-slate-300" />
                     </div>
                   )}
@@ -156,7 +156,7 @@ export function Chatbot() {
 
               {isTyping && (
                 <div className="flex gap-3 justify-start">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
                     <Bot className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="bg-slate-100 dark:bg-slate-800 rounded-lg px-4 py-2">
@@ -185,7 +185,7 @@ export function Chatbot() {
                   onClick={handleSend}
                   disabled={!input.trim() || isTyping}
                   size="icon"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Send className="h-4 w-4" />
                 </Button>

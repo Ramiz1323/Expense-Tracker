@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongodb/db';
 import { User } from '@/lib/mongodb/models/User';
+import { Otp } from '@/lib/mongodb/models/Otp'; // Import OTP model
 import { hashPassword } from '@/lib/auth/password';
 import { generateToken } from '@/lib/auth/jwt';
 import { setAuthToken } from '@/lib/auth/session';
@@ -9,41 +10,56 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { email, password, fullName } = await request.json();
+    const { email, password, fullName, phone, otp } = await request.json();
 
-    // Validate input
-    if (!email || !password || !fullName) {
+    // 1. Validate Input
+    if (!email || !password || !fullName || !phone || !otp) {
       return NextResponse.json(
-        { error: 'Email, password, and full name are required' },
+        { error: 'All fields (including OTP) are required' },
         { status: 400 }
       );
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    // 2. Verify OTP
+    const validOtp = await Otp.findOne({ phone, code: otp });
+    if (!validOtp) {
+      return NextResponse.json(
+        { error: 'Invalid or expired OTP' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Check existing user
+    const existingUser = await User.findOne({ 
+      $or: [{ email: email.toLowerCase() }, { phone }] 
+    });
+    
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'User with this email or phone already exists' },
         { status: 400 }
       );
     }
 
-    // Hash password
+    // 4. Create User
     const hashedPassword = await hashPassword(password);
 
-    // Create user
     const user = await User.create({
       email: email.toLowerCase(),
       password: hashedPassword,
       fullName,
+      phone,
       role: 'user',
     });
 
-    // Generate token
-    const token = generateToken(user._id.toString(), user.email, user.role);
+    // 5. Cleanup OTP
+    await Otp.deleteOne({ _id: validOtp._id });
 
-    // Set token in cookie and response
-    const response = NextResponse.json(
+    // 6. Login User
+    const token = generateToken(user._id.toString(), user.email, user.role);
+    await setAuthToken(token);
+
+    return NextResponse.json(
       {
         message: 'User created successfully',
         user: {
@@ -56,9 +72,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
 
-    await setAuthToken(token);
-
-    return response;
   } catch (error) {
     console.error('Sign up error:', error);
     return NextResponse.json(

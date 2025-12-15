@@ -6,6 +6,19 @@ import * as faceapi from "face-api.js";
 import { toast } from "sonner"; // Assuming you are using Sonner as per your imports
 
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+
+import {
   User,
   Shield,
   Lock,
@@ -62,7 +75,8 @@ export default function SettingsPage() {
   const [camLoading, setCamLoading] = useState(false);
 
   // Danger zone
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"idle" | "acknowledged">("idle");
   const [deleting, setDeleting] = useState(false);
 
   const router = useRouter();
@@ -261,7 +275,7 @@ export default function SettingsPage() {
     setDeleting(true);
     try {
       const res = await fetch("/api/user/delete", { method: "DELETE" });
-      
+
       let data;
       const contentType = res.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -285,6 +299,9 @@ export default function SettingsPage() {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Failed to delete account");
       setDeleting(false);
+    } finally {
+      setDeleteStep("idle");
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -392,9 +409,9 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button 
-                onClick={handleChangePassword} 
-                disabled={passwordSaving} 
+              <Button
+                onClick={handleChangePassword}
+                disabled={passwordSaving}
                 variant="outline"
                 className="w-full border-slate-200 hover:bg-slate-50"
               >
@@ -436,7 +453,7 @@ export default function SettingsPage() {
                         <p className="text-xs">Camera is offline</p>
                       </div>
                     )}
-                    
+
                     <video
                       ref={videoRef}
                       className={`absolute inset-0 w-full h-full object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
@@ -444,11 +461,11 @@ export default function SettingsPage() {
                       muted
                       playsInline
                     />
-                    
+
                     {cameraReady && !camLoading && (
                       <div className="absolute inset-0 pointer-events-none">
                         <div className="w-48 h-48 border-2 border-emerald-500/50 rounded-lg absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                           <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                          <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
                         </div>
                         <p className="absolute bottom-4 w-full text-center text-xs text-white/70 bg-black/40 py-1">
                           Position your face within the frame
@@ -507,31 +524,89 @@ export default function SettingsPage() {
                   <p className="font-medium text-slate-900 dark:text-slate-200">Delete Account</p>
                   <p>Permanently remove your data</p>
                 </div>
-                {!showDeleteConfirm ? (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={handleDeleteAccount}
-                    disabled={deleting}
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
-                  </Button>
-                )}
+                <AlertDialog
+                  open={deleteDialogOpen}
+                  onOpenChange={(open) => {
+                    setDeleteDialogOpen(open);
+                    if (!open) {
+                      setDeleteStep("idle");
+                    }
+                  }}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-red-600">
+                        Delete account permanently?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-2">
+                        <p>
+                          This action <strong>cannot be undone</strong>.
+                        </p>
+                        <p>
+                          All your data, transactions, and biometric credentials will be
+                          permanently deleted.
+                        </p>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                      {deleteStep === "idle" ? (
+                        <>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            asChild
+                          >
+                            <Button
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setDeleteStep("acknowledged");
+                              }}
+                            >
+                              OK, I understand
+                            </Button>
+                          </AlertDialogAction>
+                        </>
+                      ) : (
+                        <>
+                          <AlertDialogCancel
+                            onClick={() => setDeleteStep("idle")}
+                          >
+                            Go Back
+                          </AlertDialogCancel>
+
+                          <Button
+                            variant="destructive"
+                            onClick={handleDeleteAccount}
+                            disabled={deleting}
+                          >
+                            {deleting ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 mr-2" />
+                            )}
+                            Confirm Delete
+                          </Button>
+                        </>
+                      )}
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
               </div>
             </CardContent>
           </Card>
 
         </div>
       </div>
-      
+
       <style jsx>{`
         @keyframes scan {
           0% { top: 0; opacity: 0; }

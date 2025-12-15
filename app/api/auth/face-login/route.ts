@@ -20,11 +20,13 @@ export async function POST(req: NextRequest) {
       descriptor
     );
 
-    if (distance < 0.55) { // threshold
+    if (distance < 0.55) {
+      // Pass user.fullName as the 4th argument
       const token = generateToken(
         user._id.toString(),
         user.email,
-        user.role
+        user.role,
+        user.fullName
       );
 
       await setAuthToken(token);

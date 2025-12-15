@@ -4,6 +4,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   fullName: string;
+  phone: string; // Added Phone
   avatarUrl?: string;
   role: 'user' | 'admin';
   createdAt: Date;
@@ -24,11 +25,18 @@ const UserSchema = new Schema<IUser>(
       trim: true,
       match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email'],
     },
+    // Added Phone Field
+    phone: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      unique: true,
+      trim: true,
+    },
     password: {
       type: String,
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters'],
-      select: false, // Don't return password by default
+      select: false, 
     },
     fullName: {
       type: String,
@@ -44,12 +52,10 @@ const UserSchema = new Schema<IUser>(
       enum: ['user', 'admin'],
       default: 'user',
     },
-
     faceAuth: {
       enabled: { type: Boolean, default: false },
-      descriptor: { type: [Number] }, // Float32Array stored as array
+      descriptor: { type: [Number] }, 
     }
-
   },
   {
     timestamps: true,

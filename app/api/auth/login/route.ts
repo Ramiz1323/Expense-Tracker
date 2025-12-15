@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const { email, password } = await request.json();
-
+    
     // Validate input
     if (!email || !password) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token
-    const token = generateToken(user._id.toString(), user.email, user.role);
+    const token = generateToken(user._id.toString(), user.email, user.role, user.fullName);
 
     // Set token in cookie and response
     const response = NextResponse.json(

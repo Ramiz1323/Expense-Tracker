@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongodb/db';
 import { getCurrentUser } from '@/lib/auth/session';
 import { Subscription } from '@/lib/mongodb/models/Subscription';
+import { Transaction } from '@/lib/mongodb/models/Transaction'; //
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       nextPayment.setFullYear(nextPayment.getFullYear() + 1);
     }
 
+    // 1. Create the Subscription entry
     const subscription = await Subscription.create({
       userId: currentUser.userId,
       name,
@@ -58,6 +60,16 @@ export async function POST(request: NextRequest) {
       startDate: start,
       nextPaymentDate: nextPayment,
       category: category || 'General',
+    });
+
+    // 2. Automatically create a corresponding Transaction for the first payment
+    await Transaction.create({
+      userId: currentUser.userId,
+      category: category || 'Subscription',
+      description: `${name} (${billingCycle} subscription)`,
+      amount: amount,
+      type: 'expense', // Subscriptions are spending
+      date: start, // The transaction happens on the start date
     });
 
     return NextResponse.json(subscription, { status: 201 });

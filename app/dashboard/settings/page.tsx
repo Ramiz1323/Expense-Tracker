@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import * as faceapi from "face-api.js";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Assuming you are using Sonner as per your imports
 
 import {
   User,
@@ -256,14 +256,34 @@ export default function SettingsPage() {
     }
   };
 
+  // --- UPDATED SAFER DELETE FUNCTION ---
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
-      await fetch("/api/user/delete", { method: "DELETE" });
+      const res = await fetch("/api/user/delete", { method: "DELETE" });
+      
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        // If response is not JSON (e.g., HTML error page), read text to avoid parsing error
+        const text = await res.text();
+        console.error("Non-JSON response:", text);
+        throw new Error("Server error: Could not delete account. Check console.");
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete account");
+      }
+
+      // Success - Log out
       await fetch("/api/auth/logout", { method: "POST" });
+      toast.success("Account deleted successfully");
       router.push("/");
     } catch (e) {
-      toast.error("Failed to delete account");
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Failed to delete account");
       setDeleting(false);
     }
   };
@@ -274,7 +294,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex-1 space-y-6 p-4 sm:p-6 pb-24">
-      {/* HEADER - Restored Emerald Gradient */}
+      {/* HEADER */}
       <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-6 rounded-2xl text-white shadow-lg">
         <div className="flex items-center gap-3">
           <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
@@ -292,8 +312,6 @@ export default function SettingsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
-          
-          {/* PROFILE CARD */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -334,7 +352,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* SECURITY CARD */}
           <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -390,8 +407,6 @@ export default function SettingsPage() {
 
         {/* RIGHT COLUMN */}
         <div className="space-y-6">
-          
-          {/* FACE AUTH CARD - Restored Emerald Styling */}
           <Card className={`border-l-4 shadow-sm ${faceAuthEnabled ? 'border-l-emerald-500' : 'border-l-emerald-500'}`}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -414,7 +429,6 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Camera Viewport */}
                   <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-800">
                     {!cameraReady && (
                       <div className="text-center text-slate-500">
@@ -431,7 +445,6 @@ export default function SettingsPage() {
                       playsInline
                     />
                     
-                    {/* Scanning Overlay Effect - Switched to Emerald Color */}
                     {cameraReady && !camLoading && (
                       <div className="absolute inset-0 pointer-events-none">
                         <div className="w-48 h-48 border-2 border-emerald-500/50 rounded-lg absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -480,7 +493,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* DANGER ZONE */}
           <Card className="border-red-100 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg text-red-600 dark:text-red-400">
@@ -520,7 +532,6 @@ export default function SettingsPage() {
         </div>
       </div>
       
-      {/* Inline styles for scanning animation */}
       <style jsx>{`
         @keyframes scan {
           0% { top: 0; opacity: 0; }

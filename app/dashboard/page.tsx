@@ -12,7 +12,7 @@ export default async function DashboardPage() {
       <div className="bg-linear-to-r from-indigo-600 to-purple-600 p-6 rounded-2xl shadow-lg text-white">
         <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
         <p className="text-sm mt-1 opacity-90">
-          Welcome back, {user?.fullName?.split(" ")[0] || "User"}!
+          Welcome back, {user?.fullName?.split(" ")[0] || "User"}! Here's your financial overview.
         </p>
       </div>
 

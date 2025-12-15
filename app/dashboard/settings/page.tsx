@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import * as faceapi from "face-api.js";
+import { toast } from "sonner";
 
 import {
   User,
@@ -11,6 +12,10 @@ import {
   Trash2,
   ScanFace,
   Settings as SettingsIcon,
+  Camera,
+  Mail,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,7 +28,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 
 interface UserProfile {
   fullName: string;
@@ -40,8 +45,6 @@ export default function SettingsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   // Password
   const [passwords, setPasswords] = useState({
@@ -50,8 +53,6 @@ export default function SettingsPage() {
     confirmPassword: "",
   });
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [passwordError, setPasswordError] = useState("");
 
   // Face auth
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,10 +74,16 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadModels = async () => {
       const MODEL_URL = "/models";
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-      setModelsLoaded(true);
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        setModelsLoaded(true);
+      } catch (e) {
+        console.error("Failed to load face models", e);
+      }
     };
     loadModels();
   }, []);
@@ -104,7 +111,7 @@ export default function SettingsPage() {
         setFaceAuthEnabled(Boolean(data.user.faceAuth?.enabled));
 
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Error");
+        toast.error("Failed to load profile data");
       } finally {
         setLoading(false);
       }
@@ -132,7 +139,7 @@ export default function SettingsPage() {
       await videoRef.current.play();
       setCameraReady(true);
     } catch {
-      alert("Camera permission denied");
+      toast.error("Camera permission denied");
     }
   };
 
@@ -147,8 +154,6 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async () => {
     setSaving(true);
-    setError("");
-    setMessage("");
 
     try {
       const res = await fetch("/api/user/profile", {
@@ -158,9 +163,9 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) throw new Error("Failed to update profile");
-      setMessage("Profile updated successfully");
+      toast.success("Profile updated successfully");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error");
+      toast.error("Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -168,13 +173,16 @@ export default function SettingsPage() {
 
   const handleChangePassword = async () => {
     if (passwords.newPassword !== passwords.confirmPassword) {
-      setPasswordError("Passwords do not match");
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (!passwords.currentPassword) {
+      toast.error("Current password is required");
       return;
     }
 
     setPasswordSaving(true);
-    setPasswordError("");
-    setPasswordMessage("");
 
     try {
       const res = await fetch("/api/user/password", {
@@ -186,25 +194,21 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setPasswordMessage("Password changed successfully");
+      toast.success("Password changed successfully");
       setPasswords({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : "Error");
+      toast.error(err instanceof Error ? err.message : "Failed to change password");
     } finally {
       setPasswordSaving(false);
     }
   };
 
   const registerFace = async () => {
-    if (faceAuthEnabled) {
-      alert("Face authentication is already enabled");
-      return;
-    }
-
+    if (faceAuthEnabled) return;
     if (!videoRef.current) return;
 
     setCamLoading(true);
@@ -222,7 +226,7 @@ export default function SettingsPage() {
         .withFaceDescriptor();
 
       if (!detection) {
-        alert("No face detected");
+        toast.error("No face detected. Please look at the camera.");
         return;
       }
 
@@ -235,17 +239,18 @@ export default function SettingsPage() {
       });
 
       if (res.status === 409) {
-        alert("This face is already linked to another account.");
+        toast.error("This face is already linked to another account.");
         setFaceAuthEnabled(false);
         stopCamera();
         return;
       }
 
-
-      alert("Face authentication enabled");
+      toast.success("Face authentication enabled!");
       setFaceAuthEnabled(true);
       stopCamera();
 
+    } catch (e) {
+      toast.error("Failed to register face data");
     } finally {
       setCamLoading(false);
     }
@@ -253,9 +258,14 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
-    await fetch("/api/user/delete", { method: "DELETE" });
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
+    try {
+      await fetch("/api/user/delete", { method: "DELETE" });
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/");
+    } catch (e) {
+      toast.error("Failed to delete account");
+      setDeleting(false);
+    }
   };
 
   if (loading) return <div className="p-6">Loading settings…</div>;
@@ -263,207 +273,262 @@ export default function SettingsPage() {
   /* ------------------------ UI ------------------------ */
 
   return (
-    <div className="flex-1 space-y-6 p-6 pb-24">
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 rounded-2xl text-white shadow-lg">
+    <div className="flex-1 space-y-6 p-4 sm:p-6 pb-24">
+      {/* HEADER - Restored Emerald Gradient */}
+      <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-6 rounded-2xl text-white shadow-lg">
         <div className="flex items-center gap-3">
-          <SettingsIcon className="h-7 w-7" />
+          <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+            <SettingsIcon className="h-6 w-6 text-white" />
+          </div>
           <div>
             <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-sm opacity-90">
+            <p className="text-sm text-emerald-50 opacity-90">
               Manage your account, security and preferences
             </p>
           </div>
         </div>
       </div>
 
-      {/* PROFILE */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-emerald-600" />
-            Profile Information
-          </CardTitle>
-          <CardDescription>Personal details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          {message && (
-            <Alert className="bg-emerald-50 border-emerald-200">
-              <AlertDescription>{message}</AlertDescription>
-            </Alert>
-          )}
-
-          <div>
-            <Label>Email</Label>
-            <Input value={profile.email} disabled />
-          </div>
-
-          <div>
-            <Label>Full Name</Label>
-            <Input
-              value={profile.fullName}
-              onChange={(e) =>
-                setProfile({ ...profile, fullName: e.target.value })
-              }
-            />
-          </div>
-
-          <Button
-            onClick={handleSaveProfile}
-            disabled={saving}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            {saving ? "Saving…" : "Save Changes"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* SECURITY */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-emerald-600" />
-            Security
-          </CardTitle>
-          <CardDescription>Password management</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            placeholder="Current password"
-            type="password"
-            value={passwords.currentPassword}
-            onChange={(e) =>
-              setPasswords({ ...passwords, currentPassword: e.target.value })
-            }
-          />
-          <Input
-            placeholder="New password"
-            type="password"
-            value={passwords.newPassword}
-            onChange={(e) =>
-              setPasswords({ ...passwords, newPassword: e.target.value })
-            }
-          />
-          <Input
-            placeholder="Confirm password"
-            type="password"
-            value={passwords.confirmPassword}
-            onChange={(e) =>
-              setPasswords({ ...passwords, confirmPassword: e.target.value })
-            }
-          />
-
-          <Button onClick={handleChangePassword} disabled={passwordSaving}>
-            {passwordSaving ? "Updating…" : "Change Password"}
-          </Button>
-
-          {passwordMessage && <p className="text-sm">{passwordMessage}</p>}
-          {passwordError && (
-            <p className="text-sm text-red-600">{passwordError}</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* FACE AUTH */}
-      <Card className="border-l-4 border-l-emerald-500">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ScanFace className="h-5 w-5 text-emerald-600" />
-            Face Authentication
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {/* ✅ ENABLED STATE */}
-          {faceAuthEnabled && (
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-              <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white">
-                ✓
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* LEFT COLUMN */}
+        <div className="space-y-6">
+          
+          {/* PROFILE CARD */}
+          <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <User className="h-5 w-5 text-emerald-600" />
+                Profile Details
+              </CardTitle>
+              <CardDescription>Update your public information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input value={profile.email} disabled className="pl-9 bg-slate-50 dark:bg-slate-900" />
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-emerald-800 dark:text-emerald-300">
-                  Face Authentication Enabled
-                </p>
-                <p className="text-sm text-emerald-700/80 dark:text-emerald-400">
-                  You can now log in using face authentication.
-                </p>
+
+              <div className="space-y-2">
+                <Label>Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    className="pl-9"
+                    value={profile.fullName}
+                    onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
+                  />
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* ❌ NOT ENABLED STATE */}
-          {!faceAuthEnabled && (
-            <>
-              <video
-                ref={videoRef}
-                className={`rounded-lg border mx-auto ${cameraReady ? "block" : "hidden"
-                  }`}
-                width={320}
-                height={240}
-                autoPlay
-                muted
-                playsInline
-              />
+              <Button
+                onClick={handleSaveProfile}
+                disabled={saving}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {saving ? "Saving Changes..." : "Save Changes"}
+              </Button>
+            </CardContent>
+          </Card>
 
-              {!cameraReady && (
-                <Button
-                  variant="outline"
-                  onClick={startCamera}
-                  disabled={!modelsLoaded}
-                  className="w-full"
-                >
-                  {!modelsLoaded
-                    ? "Loading Face Models…"
-                    : "Start Face Registration"}
-                </Button>
+          {/* SECURITY CARD */}
+          <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Lock className="h-5 w-5 text-emerald-600" />
+                Password
+              </CardTitle>
+              <CardDescription>Ensure your account is secure</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Current Password</Label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={passwords.currentPassword}
+                  onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                />
+              </div>
+              <Separator />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>New Password</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.newPassword}
+                    onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Confirm</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.confirmPassword}
+                    onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleChangePassword} 
+                disabled={passwordSaving} 
+                variant="outline"
+                className="w-full border-slate-200 hover:bg-slate-50"
+              >
+                {passwordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Change Password
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="space-y-6">
+          
+          {/* FACE AUTH CARD - Restored Emerald Styling */}
+          <Card className={`border-l-4 shadow-sm ${faceAuthEnabled ? 'border-l-emerald-500' : 'border-l-emerald-500'}`}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ScanFace className="h-5 w-5 text-emerald-600" />
+                Biometric Login
+              </CardTitle>
+              <CardDescription>Manage Face ID settings</CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {faceAuthEnabled ? (
+                <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20 text-center">
+                  <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-3">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Face ID Active</h3>
+                  <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+                    You can now use facial recognition to log in securely.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Camera Viewport */}
+                  <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-800">
+                    {!cameraReady && (
+                      <div className="text-center text-slate-500">
+                        <Camera className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs">Camera is offline</p>
+                      </div>
+                    )}
+                    
+                    <video
+                      ref={videoRef}
+                      className={`absolute inset-0 w-full h-full object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
+                      autoPlay
+                      muted
+                      playsInline
+                    />
+                    
+                    {/* Scanning Overlay Effect - Switched to Emerald Color */}
+                    {cameraReady && !camLoading && (
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div className="w-48 h-48 border-2 border-emerald-500/50 rounded-lg absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                           <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                        </div>
+                        <p className="absolute bottom-4 w-full text-center text-xs text-white/70 bg-black/40 py-1">
+                          Position your face within the frame
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {!cameraReady ? (
+                    <Button
+                      onClick={startCamera}
+                      disabled={!modelsLoaded}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {!modelsLoaded ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading Models...
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="mr-2 h-4 w-4" /> Start Camera
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={stopCamera} className="flex-1">
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={registerFace}
+                        disabled={camLoading}
+                        className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {camLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Scan & Register
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
+            </CardContent>
+          </Card>
 
-              {cameraReady && (
-                <Button
-                  onClick={registerFace}
-                  disabled={camLoading}
-                  className="w-full"
-                >
-                  {camLoading ? "Registering…" : "Enable Face Authentication"}
-                </Button>
-              )}
+          {/* DANGER ZONE */}
+          <Card className="border-red-100 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg text-red-600 dark:text-red-400">
+                <Shield className="h-5 w-5" />
+                Danger Zone
+              </CardTitle>
+              <CardDescription>Irreversible account actions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                  <p className="font-medium text-slate-900 dark:text-slate-200">Delete Account</p>
+                  <p>Permanently remove your data</p>
+                </div>
+                {!showDeleteConfirm ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={handleDeleteAccount}
+                    disabled={deleting}
+                  >
+                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-              <p className="text-xs text-muted-foreground text-center">
-                You can enable face authentication once.
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* DANGER */}
-      <Card className="border-red-500 border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600">
-            <Trash2 className="h-5 w-5" />
-            Danger Zone
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!showDeleteConfirm ? (
-            <Button
-              variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Delete Account
-            </Button>
-          ) : (
-            <Button variant="destructive" onClick={handleDeleteAccount}>
-              {deleting ? "Deleting…" : "Confirm Delete"}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      
+      {/* Inline styles for scanning animation */}
+      <style jsx>{`
+        @keyframes scan {
+          0% { top: 0; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -7,15 +7,16 @@ const ENCRYPTION_KEY = new TextEncoder().encode(JWT_SECRET.substring(0, 32).padE
 export interface TokenPayload {
   userId: string;
   email: string;
+  fullName: string;
   role: 'user' | 'admin';
   iat: number;
   exp: number;
 }
 
 // Generate JWT token
-export function generateToken(userId: string, email: string, role: 'user' | 'admin') {
+export function generateToken(userId: string, email: string, role: 'user' | 'admin', fullName: string) {
   return jwt.sign(
-    { userId, email, role },
+    { userId, email, role, fullName }, // Add fullName here
     JWT_SECRET,
     { expiresIn: '7d' }
   );

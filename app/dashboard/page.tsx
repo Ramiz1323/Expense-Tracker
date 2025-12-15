@@ -2,6 +2,7 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { GoalsSection } from "@/components/dashboard/goals-section"; 
 import { getCurrentUser } from "@/lib/auth/session";
+import { ProBanner } from "@/components/dashboard/pro-banner";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -15,6 +16,9 @@ export default async function DashboardPage() {
           Welcome back, {user?.fullName?.split(" ")[0] || "User"}! Here's your financial overview.
         </p>
       </div>
+
+      {/* Go Pro Banner */}
+      <ProBanner />
 
       {/* Existing Stats */}
       <DashboardStats userId={user?.userId || ""} />

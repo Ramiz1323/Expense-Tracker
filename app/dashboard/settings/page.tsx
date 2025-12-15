@@ -28,7 +28,8 @@ import {
   Camera,
   Mail,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Crown
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { GoProButton } from "@/components/ui/go-pro-button";
 
 interface UserProfile {
   fullName: string;
@@ -507,6 +509,28 @@ export default function SettingsPage() {
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/30 dark:bg-emerald-900/10 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg text-emerald-600 dark:text-emerald-400">
+                <Crown className="h-5 w-5" />
+                Upgrade to Pro
+              </CardTitle>
+              <CardDescription>Unlock advanced features and premium support</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                <p>Get access to:</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>Advanced analytics and reports</li>
+                  <li>Unlimited transaction categories</li>
+                  <li>Priority customer support</li>
+                  <li>Export data in multiple formats</li>
+                </ul>
+              </div>
+              <GoProButton className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" />
             </CardContent>
           </Card>
 

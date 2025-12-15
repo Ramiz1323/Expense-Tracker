@@ -51,11 +51,79 @@ export function Chatbot() {
   useEffect(() => {
     if (!transcript.trim()) return;
 
-    handleSend(transcript);
+    handleSend(transcript, true);
     setTranscript("");
   }, [transcript]);
+ const getSpeechText = (fullText: string) => {
+  const MAX_SENTENCES = 2;
 
-  const handleSend = async (text?: string) => {
+  const sentences = fullText
+    .replace(/\n+/g, " ")
+    .split(". ")
+    .filter(Boolean);
+
+  // If response is already short, read it fully
+  if (sentences.length <= MAX_SENTENCES) {
+    return sentences.join(". ");
+  }
+
+  // Otherwise, summarize + default message
+  const spokenPart = sentences.slice(0, MAX_SENTENCES).join(". ");
+  return `${spokenPart}. Please check the chat for full details.`;
+};
+
+const renderFormattedText = (text: string) => {
+  return text.split("\n").map((line, index) => {
+    // Headings
+    if (line.startsWith("#")) {
+        const level = line.match(/^#+/)?.[0].length || 1;
+        const text = line.replace(/^#+\s*/, "");
+
+        return (
+        <h3 key={index} className={cn("font-semibold mt-3",
+        level === 1 && "text-base",
+        level === 2 && "text-sm",
+        level >= 3 && "text-xs"
+      )}
+    >
+      {text}
+    </h3>
+  );
+}
+
+    // Bullet points
+    if (line.startsWith("- ")) {
+        return (
+          <ul key={index} className="ml-4 list-disc">
+            <li>{line.replace("- ", "")}</li>
+          </ul>
+        );
+    }
+
+    // Bold (**text**)
+    if (line.includes("**")) {
+      const parts = line.split("**");
+      return (
+        <p key={index}>
+          {parts.map((part, i) =>
+            i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+          )}
+        </p>
+      );
+    }
+
+    // Normal text
+    return (
+      <p key={index} className="mt-1">
+        {line}
+      </p>
+    );
+  });
+};
+
+
+  const handleSend = async (text?: string, fromVoice = false) => {
+    
     const messageText = text ?? input.trim();
     if (!messageText) return;
 
@@ -87,7 +155,10 @@ export function Chatbot() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-      speak(botMessage.text);
+      if(fromVoice){
+        const speechText = getSpeechText(botMessage.text);
+        speak(speechText);
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -151,13 +222,13 @@ export function Chatbot() {
                 )}
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-lg px-4 py-2 text-sm",
+                    "max-w-[80%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap",
                     message.sender === "user"
                       ? "bg-blue-600 text-white"
                       : "bg-slate-100 dark:bg-slate-800"
                   )}
                 >
-                  {message.text}
+                {renderFormattedText(message.text)}
                 </div>
                 {message.sender === "user" && <User className="h-5 w-5" />}
               </div>

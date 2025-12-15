@@ -51,11 +51,12 @@ export function Chatbot() {
   useEffect(() => {
     if (!transcript.trim()) return;
 
-    handleSend(transcript);
+    handleSend(transcript, true);
     setTranscript("");
   }, [transcript]);
 
-  const handleSend = async (text?: string) => {
+  const handleSend = async (text?: string, fromVoice = false) => {
+    
     const messageText = text ?? input.trim();
     if (!messageText) return;
 
@@ -87,7 +88,9 @@ export function Chatbot() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
-      speak(botMessage.text);
+      if(fromVoice){
+        speak(botMessage.text);
+      }
     } catch {
       setMessages((prev) => [
         ...prev,

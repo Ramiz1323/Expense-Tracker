@@ -64,7 +64,10 @@ export function DashboardNav() {
           <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             FinTrack
           </h1>
-          <ThemeToggle />
+          {/* Desktop only */}
+          <div className="hidden lg:block">
+            <ThemeToggle />
+          </div>
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -119,24 +122,29 @@ export function DashboardNav() {
 
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">FinTrack</h1>
-        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="w-6 h-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
-            <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
+        <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">
+          FinTrack
+        </h1>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="w-6 h-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-64">
+              <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
 
-            {/* 2. Added SheetDescription here (hidden from view but available to screen readers) */}
-            <SheetDescription className="sr-only">
-              Main navigation menu for mobile devices
-            </SheetDescription>
+              {/* 2. Added SheetDescription here (hidden from view but available to screen readers) */}
+              <SheetDescription className="sr-only">
+                Main navigation menu for mobile devices
+              </SheetDescription>
 
-            <NavContent />
-          </SheetContent>
-        </Sheet>
+              <NavContent />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </>
   );

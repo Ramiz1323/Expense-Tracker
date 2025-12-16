@@ -11,11 +11,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProBanner } from "@/components/dashboard/pro-banner";
 import { GoProButton } from "@/components/ui/go-pro-button";
 import { ProDialog } from "@/components/ui/pro-dialog";
+import RazorpayLoader from "../RazerpayLoader";
 
 export function DashboardNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showProBanner, setShowProBanner] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -41,6 +43,10 @@ export function DashboardNav() {
 
           if (data.user.role === "admin") {
             setIsAdmin(true);
+          }
+
+          if (Boolean(data.user.isPro) == true) {
+            setShowProBanner(false);
           }
         }
       } catch (error) {
@@ -90,7 +96,14 @@ export function DashboardNav() {
       </div>
 
       {/* Pro Banner */}
-      {showProBanner && <div className="p-4"><ProDialog><Button className={`w-full shadow-lg ${bgClass}`}>Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" /></Button></ProDialog></div>}
+      {showProBanner && <div className="p-4">
+        <ProDialog>
+          <Button className={`w-full shadow-lg ${bgClass}`}>
+            Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+          </Button>
+        </ProDialog>
+      </div>
+      }
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
@@ -131,9 +144,10 @@ export function DashboardNav() {
 
   return (
     <>
+      <RazorpayLoader />
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col">
-        <NavContent showProBanner={true} />
+        <NavContent showProBanner={showProBanner} />
       </div>
 
       {/* Mobile Header */}
@@ -160,7 +174,7 @@ export function DashboardNav() {
                 Main navigation menu for mobile devices
               </SheetDescription>
 
-              <NavContent showProBanner={false} />
+              <NavContent showProBanner={showProBanner} />
             </SheetContent>
           </Sheet>
         </div>

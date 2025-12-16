@@ -42,24 +42,56 @@ export function GoProButton({ className, variant = 'default', size = 'default' }
         amount,
         currency,
         order_id: orderId,
-        name: 'Fintrack pro',
+        name: 'Fintrack Pro',
         description: 'Upgrade to Pro for advanced features',
-        handler: function (response: any) {
-          toast.success('Payment successful! Welcome to Pro.');
-          // Here you can update user status or redirect
-          console.log(response);
+
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch('/api/payment/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(response),
+            });
+
+            if (!verifyRes.ok) {
+              throw new Error();
+            }
+
+            toast.success('🎉 You are now a Pro user!');
+            window.location.reload();
+          } catch {
+            toast.error('Payment verification failed');
+          }
         },
+
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          },
+        },
+
         prefill: {
           name: 'User Name',
           email: 'user@example.com',
         },
+
         theme: {
-          color: '#10b981', // emerald color
+          color: '#10b981',
         },
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      setTimeout(() => {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        setLoading(false);
+      }, 100);
+
+      setTimeout(() => {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        setLoading(false);
+      }, 100);
+
     } catch (error) {
       toast.error('Failed to initiate payment. Please try again.');
       console.error(error);

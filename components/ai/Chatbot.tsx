@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { MessageCircle, Send, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Mic, MicOff } from "lucide-react";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 
 interface Message {
   id: string;
@@ -26,27 +28,103 @@ export function Chatbot() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editedText, setEditedText] = useState("");
+  const { listening, transcript, setTranscript, startListening } = useVoiceAssistant();
+  const [isPaused, setIsPaused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
+    if(isPaused) return;
+    if(!transcript.trim()) return;
 
-  const handleSend = async () => {
+    setInput(transcript);
+    handleSend();
+    setTranscript("");
+  }, [transcript, isPaused]);
+
+  const handleEditedSend = async () => {
+  if (!editedText.trim() || !editingMessageId) return;
+
+  setIsTyping(true);
+
+  // 1️⃣ Update messages: keep everything BEFORE edited message
+  setMessages(prev => {
+    const index = prev.findIndex(m => m.id === editingMessageId);
+    return [
+      ...prev.slice(0, index),
+      {
+        id: editingMessageId,
+        text: editedText,
+        sender: "user",
+        timestamp: new Date(),
+      }
+    ];
+  });
+
+  try {
+    // 2️⃣ Call API again with edited text
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: editedText }),
+    });
+
+    const data = await response.json();
+
+    // 3️⃣ Append new bot response
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        text: data.reply || "Sorry, I couldn't process that.",
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ]);
+  } catch {
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        text: "Something went wrong. Please try again.",
+        sender: "bot",
+        timestamp: new Date(),
+      },
+    ]);
+  } finally {
+    setIsTyping(false);
+    setEditingMessageId(null);
+    setEditedText("");
+  }
+};
+
+  const handleSend = async (overrideText?: string) => {
+    if (isPaused) return;
+    const messageText = overrideText ?? input.trim();
     if (!input.trim()) return;
+    abortRef.current = false;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
-      text: input.trim(),
+      id: editingMessageId ?? Date.now().toString(),
+      text: messageText,
       sender: "user",
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      if (editingMessageId) {
+        const index = prev.findIndex((msg) => msg.id === editingMessageId);
+        return[...prev.slice(0, index), userMessage];
+      }
+      return [...prev, userMessage];
+    });
+    scrollToBottom();
     setInput("");
     setIsTyping(true);
 
@@ -64,6 +142,7 @@ export function Chatbot() {
       }
 
       const data = await response.json();
+      if (abortRef.current) return;
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -109,9 +188,23 @@ export function Chatbot() {
           </SheetTrigger>
           <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
             <SheetHeader className="p-4 border-b border-slate-200 dark:border-slate-800">
-              <SheetTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                FinTrack Assistant
+              <SheetTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  FinTrack Assistant
+                  {isPaused && (
+                    <span className="ml-2 text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400">
+                    Paused
+                    </span>)}
+                </div>
+                <Button
+                size='sm'
+                variant="ghost"
+                onClick={() => setIsPaused(prev => !prev)}
+                className="text-xs"
+                >
+                {isPaused ? 'Resume' : 'Pause'}
+                </Button>
               </SheetTitle>
             </SheetHeader>
 
@@ -138,7 +231,21 @@ export function Chatbot() {
                         : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    {editingMessageId === message.id ? (
+                        <div className="flex gap-2">
+                            <Input
+                                value={editedText}
+                                onChange={(e) => setEditedText(e.target.value)}
+                                className="flex-1"
+                                autoFocus
+                            />
+                            <Button size="sm" onClick={handleEditedSend}>
+                                Send
+                            </Button>
+                        </div>
+                    ) : (
+                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>     
+                    )}
                     <span className="text-xs opacity-70 mt-1 block">
                       {message.timestamp.toLocaleTimeString([], {
                         hour: "2-digit",
@@ -173,7 +280,7 @@ export function Chatbot() {
 
             {/* Input Container */}
             <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -181,13 +288,40 @@ export function Chatbot() {
                   placeholder="Type your message..."
                   className="flex-1"
                 />
+                {/*MIC Button */}
                 <Button
-                  onClick={handleSend}
-                  disabled={!input.trim() || isTyping}
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={startListening}
+                    disabled={isPaused}
+                    aria-label="voice Input"
+                >
+                    {listening ? <MicOff className="h-4 w-4" /> :(<Mic className="h-4 w-4" />
+                    )}
+                </Button>
+                <Button
                   size="icon"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={()=>{
+                    if (isTyping){
+                        abortRef.current = true;
+                        setIsTyping(false);
+
+                        //Enable edit mode
+                        const lastUserMessage = [...messages]
+                        .reverse()
+                        .find(m => m.sender === "user");
+                        if(lastUserMessage){
+                            setEditingMessageId(lastUserMessage.id);
+                            setEditedText(lastUserMessage.text);
+                        }
+                    }else{
+                        handleSend();
+                    }
+                  }}
                 >
-                  <Send className="h-4 w-4" />
+                    {isTyping ? "⏹" : <Send className="h-4 w-4" />}
                 </Button>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">

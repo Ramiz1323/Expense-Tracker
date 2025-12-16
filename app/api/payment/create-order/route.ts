@@ -10,8 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const { amount, currency = 'INR' } = await request.json();
 
-    // For Go Pro, fixed amount, say 499 INR (in paisa)
-    const orderAmount = amount || 49900; // 499 INR in paisa
+    // For Go Pro, fixed amount, say 299 INR (in paisa)
+    const orderAmount = amount || 29900; // 299 INR in paisa
 
     const options = {
       amount: orderAmount,

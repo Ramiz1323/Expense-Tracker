@@ -28,7 +28,7 @@ export function GoProButton({ className, variant = 'default', size = 'default' }
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount: 49900 }), // 499 INR
+        body: JSON.stringify({ amount: 29900 }), // 299 INR
       });
 
       if (!response.ok) {

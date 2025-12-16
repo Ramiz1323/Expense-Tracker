@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { GoProButton } from "@/components/ui/go-pro-button";
+import { ProDialog } from "@/components/ui/pro-dialog";
 
 interface UserProfile {
   fullName: string;
@@ -83,6 +84,17 @@ export default function SettingsPage() {
 
   const router = useRouter();
   const pathname = usePathname();
+
+  const pageBg: Record<string, string> = {
+    "/dashboard": "bg-gradient-to-r from-indigo-600 to-purple-600 text-white",
+    "/dashboard/transaction": "bg-gradient-to-r from-emerald-600 to-teal-600 text-white",
+    "/dashboard/investment": "bg-gradient-to-r from-blue-600 to-purple-600 text-white",
+    "/dashboard/subscriptions": "bg-gradient-to-r from-violet-600 to-pink-600 text-white",
+    "/dashboard/groups": "bg-gradient-to-r from-pink-600 to-rose-600 text-white",
+    "/dashboard/settings": "bg-gray-500 text-white",
+  };
+
+  const bgClass = pageBg[pathname] || "";
 
   /* ------------------------ effects ------------------------ */
 
@@ -520,17 +532,8 @@ export default function SettingsPage() {
               </CardTitle>
               <CardDescription>Unlock advanced features and premium support</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                <p>Get access to:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li>Advanced analytics and reports</li>
-                  <li>Unlimited transaction categories</li>
-                  <li>Priority customer support</li>
-                  <li>Export data in multiple formats</li>
-                </ul>
-              </div>
-              <GoProButton className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" />
+            <CardContent>
+              <ProDialog><Button className={`w-full shadow-lg ${bgClass}`}>Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" /></Button></ProDialog>
             </CardContent>
           </Card>
 

@@ -23,6 +23,7 @@ export async function getCurrentUser(): Promise<TokenPayload | null> {
 // Check if user is admin
 export async function isUserAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
+  console.log(user)
   return user?.role === 'admin' || false;
 }
 

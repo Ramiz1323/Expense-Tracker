@@ -3,29 +3,50 @@
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote, CreditCard } from 'lucide-react';
+import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote, CreditCard, Crown, Lock } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { ProBanner } from "@/components/dashboard/pro-banner";
+import { GoProButton } from "@/components/ui/go-pro-button";
+import { ProDialog } from "@/components/ui/pro-dialog";
+import RazorpayLoader from "@/components/RazorpayLoader";
 
 export function DashboardNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showProBanner, setShowProBanner] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const pageBg: Record<string, string> = {
+    "/dashboard": "bg-gradient-to-r from-indigo-600 to-purple-600 text-white",
+    "/dashboard/transaction": "bg-gradient-to-r from-emerald-600 to-teal-600 text-white",
+    "/dashboard/investment": "bg-gradient-to-r from-blue-600 to-purple-600 text-white",
+    "/dashboard/subscriptions": "bg-gradient-to-r from-violet-600 to-pink-600 text-white",
+    "/dashboard/groups": "bg-gradient-to-r from-pink-600 to-rose-600 text-white",
+    "/dashboard/settings": "bg-gray-500 text-white",
+  };
+
+  const bgClass = pageBg[pathname] || "";
 
   useEffect(() => {
     const checkUserRole = async () => {
       try {
         const response = await fetch('/api/auth/me');
-        
+
         if (response.ok) {
           const data = await response.json();
           setUserEmail(data.user.email);
-          
+
           if (data.user.role === "admin") {
             setIsAdmin(true);
+          }
+
+          if (Boolean(data.user.isPro) == true) {
+            setShowProBanner(false);
           }
         }
       } catch (error) {
@@ -48,6 +69,8 @@ export function DashboardNav() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/transaction", label: "Transactions", icon: Wallet },
+    // 2. Added the Impulse Vault link here
+    { href: "/dashboard/vault", label: "Impulse Vault", icon: Lock },
     { href: "/dashboard/investment", label: "Investments", icon: Banknote },
     { href: "/dashboard/subscriptions", label: "Subscriptions", icon: CreditCard },
     { href: "/dashboard/groups", label: "Split Bills", icon: Users },
@@ -55,13 +78,34 @@ export function DashboardNav() {
     ...(isAdmin ? [{ href: "/admin", label: "Admin Panel", icon: Users }] : []),
   ];
 
-  const NavContent = () => (
+  const NavContent = ({ showProBanner }: { showProBanner: boolean }) => (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-        <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">FinTrack</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Personal Finance Tracker</p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            FinTrack
+          </h1>
+          {/* Desktop only */}
+          <div className="hidden lg:block">
+            <ThemeToggle />
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          Personal Finance Tracker
+        </p>
       </div>
+
+      {/* Pro Banner */}
+      {showProBanner && <div className="p-4">
+        <ProDialog>
+          <Button className={`w-full shadow-lg ${bgClass}`}>
+            Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+          </Button>
+        </ProDialog>
+      </div>
+      }
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
@@ -102,31 +146,38 @@ export function DashboardNav() {
 
   return (
     <>
+      <RazorpayLoader />
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col">
-        <NavContent />
+        <NavContent showProBanner={showProBanner} />
       </div>
 
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">FinTrack</h1>
-        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="w-6 h-6" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
-            <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
-            
-            {/* 2. Added SheetDescription here (hidden from view but available to screen readers) */}
-            <SheetDescription className="sr-only">
-              Main navigation menu for mobile devices
-            </SheetDescription>
-            
-            <NavContent />
-          </SheetContent>
-        </Sheet>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">
+            FinTrack
+          </h1>
+          <ProDialog><Button size="sm" className={`shadow-lg ${bgClass}`}>Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" /></Button></ProDialog>
+        </div>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="w-6 h-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-64">
+              <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
+              <SheetDescription className="sr-only">
+                Main navigation menu for mobile devices
+              </SheetDescription>
+
+              <NavContent showProBanner={showProBanner} />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </>
   );

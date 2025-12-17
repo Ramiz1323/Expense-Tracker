@@ -13,6 +13,12 @@ export interface IUser extends Document {
     enabled: boolean;
     descriptor: Array<Number>;
   };
+  isPro: boolean;
+  payment: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }
 }
 
 const UserSchema = new Schema<IUser>(
@@ -55,6 +61,15 @@ const UserSchema = new Schema<IUser>(
     faceAuth: {
       enabled: { type: Boolean, default: false },
       descriptor: { type: [Number] }, 
+    },
+    isPro: {
+      type: Boolean,
+      default: false
+    },
+    payment: {
+      razorpayOrderId: { type: String },
+      razorpayPaymentId: { type: String },
+      razorpaySignature: { type: String },
     }
   },
   {

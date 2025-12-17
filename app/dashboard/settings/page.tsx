@@ -3,7 +3,20 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import * as faceapi from "face-api.js";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Assuming you are using Sonner as per your imports
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 import {
   User,
@@ -15,7 +28,8 @@ import {
   Camera,
   Mail,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Crown
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +43,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { GoProButton } from "@/components/ui/go-pro-button";
+import { ProDialog } from "@/components/ui/pro-dialog";
+import RazorpayLoader from "@/components/RazorpayLoader";
 
 interface UserProfile {
   fullName: string;
@@ -62,11 +79,26 @@ export default function SettingsPage() {
   const [camLoading, setCamLoading] = useState(false);
 
   // Danger zone
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"idle" | "acknowledged">("idle");
   const [deleting, setDeleting] = useState(false);
+
+  // Pro
+  const [isPro, setIsPro] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
+
+  const pageBg: Record<string, string> = {
+    "/dashboard": "bg-gradient-to-r from-indigo-600 to-purple-600 text-white",
+    "/dashboard/transaction": "bg-gradient-to-r from-emerald-600 to-teal-600 text-white",
+    "/dashboard/investment": "bg-gradient-to-r from-blue-600 to-purple-600 text-white",
+    "/dashboard/subscriptions": "bg-gradient-to-r from-violet-600 to-pink-600 text-white",
+    "/dashboard/groups": "bg-gradient-to-r from-pink-600 to-rose-600 text-white",
+    "/dashboard/settings": "bg-gray-500 text-white",
+  };
+
+  const bgClass = pageBg[pathname] || "";
 
   /* ------------------------ effects ------------------------ */
 
@@ -109,6 +141,7 @@ export default function SettingsPage() {
         });
 
         setFaceAuthEnabled(Boolean(data.user.faceAuth?.enabled));
+        setIsPro(Boolean(data.user.isPro));
 
       } catch (err) {
         toast.error("Failed to load profile data");
@@ -256,15 +289,38 @@ export default function SettingsPage() {
     }
   };
 
+  // --- UPDATED SAFER DELETE FUNCTION ---
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
-      await fetch("/api/user/delete", { method: "DELETE" });
+      const res = await fetch("/api/user/delete", { method: "DELETE" });
+
+      let data;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        // If response is not JSON (e.g., HTML error page), read text to avoid parsing error
+        const text = await res.text();
+        console.error("Non-JSON response:", text);
+        throw new Error("Server error: Could not delete account. Check console.");
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete account");
+      }
+
+      // Success - Log out
       await fetch("/api/auth/logout", { method: "POST" });
+      toast.success("Account deleted successfully");
       router.push("/");
     } catch (e) {
-      toast.error("Failed to delete account");
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Failed to delete account");
       setDeleting(false);
+    } finally {
+      setDeleteStep("idle");
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -273,255 +329,350 @@ export default function SettingsPage() {
   /* ------------------------ UI ------------------------ */
 
   return (
-    <div className="flex-1 space-y-6 p-4 sm:p-6 pb-24">
-      {/* HEADER - Restored Emerald Gradient */}
-      <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-6 rounded-2xl text-white shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-            <SettingsIcon className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-sm text-emerald-50 opacity-90">
-              Manage your account, security and preferences
-            </p>
+    <div>
+      <RazorpayLoader />
+      <div className="flex-1 space-y-6 p-4 sm:p-6 pb-24">
+        {/* HEADER */}
+        <div className="bg-linear-to-r from-emerald-600 to-teal-600 p-6 rounded-2xl text-white shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+              <SettingsIcon className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Settings</h1>
+              <p className="text-sm text-emerald-50 opacity-90">
+                Manage your account, security and preferences
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* LEFT COLUMN */}
-        <div className="space-y-6">
-          
-          {/* PROFILE CARD */}
-          <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="h-5 w-5 text-emerald-600" />
-                Profile Details
-              </CardTitle>
-              <CardDescription>Update your public information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <Input value={profile.email} disabled className="pl-9 bg-slate-50 dark:bg-slate-900" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <Input
-                    className="pl-9"
-                    value={profile.fullName}
-                    onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {saving ? "Saving Changes..." : "Save Changes"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* SECURITY CARD */}
-          <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Lock className="h-5 w-5 text-emerald-600" />
-                Password
-              </CardTitle>
-              <CardDescription>Ensure your account is secure</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Current Password</Label>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={passwords.currentPassword}
-                  onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
-                />
-              </div>
-              <Separator />
-              <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* LEFT COLUMN */}
+          <div className="space-y-6">
+            <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <User className="h-5 w-5 text-emerald-600" />
+                  Profile Details
+                </CardTitle>
+                <CardDescription>Update your public information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>New Password</Label>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    value={passwords.newPassword}
-                    onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Confirm</Label>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    value={passwords.confirmPassword}
-                    onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <Button 
-                onClick={handleChangePassword} 
-                disabled={passwordSaving} 
-                variant="outline"
-                className="w-full border-slate-200 hover:bg-slate-50"
-              >
-                {passwordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Change Password
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="space-y-6">
-          
-          {/* FACE AUTH CARD - Restored Emerald Styling */}
-          <Card className={`border-l-4 shadow-sm ${faceAuthEnabled ? 'border-l-emerald-500' : 'border-l-emerald-500'}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ScanFace className="h-5 w-5 text-emerald-600" />
-                Biometric Login
-              </CardTitle>
-              <CardDescription>Manage Face ID settings</CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-6">
-              {faceAuthEnabled ? (
-                <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20 text-center">
-                  <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-3">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                  <Label>Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <Input value={profile.email} disabled className="pl-9 bg-slate-50 dark:bg-slate-900" />
                   </div>
-                  <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Face ID Active</h3>
-                  <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 mt-1">
-                    You can now use facial recognition to log in securely.
-                  </p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Camera Viewport */}
-                  <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-800">
-                    {!cameraReady && (
-                      <div className="text-center text-slate-500">
-                        <Camera className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                        <p className="text-xs">Camera is offline</p>
-                      </div>
-                    )}
-                    
-                    <video
-                      ref={videoRef}
-                      className={`absolute inset-0 w-full h-full object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
-                      autoPlay
-                      muted
-                      playsInline
+
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <Input
+                      className="pl-9"
+                      value={profile.fullName}
+                      onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
                     />
-                    
-                    {/* Scanning Overlay Effect - Switched to Emerald Color */}
-                    {cameraReady && !camLoading && (
-                      <div className="absolute inset-0 pointer-events-none">
-                        <div className="w-48 h-48 border-2 border-emerald-500/50 rounded-lg absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                           <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {saving ? "Saving Changes..." : "Save Changes"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Lock className="h-5 w-5 text-emerald-600" />
+                  Password
+                </CardTitle>
+                <CardDescription>Ensure your account is secure</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Current Password</Label>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={passwords.currentPassword}
+                    onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+                  />
+                </div>
+                <Separator />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>New Password</Label>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={passwords.newPassword}
+                      onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Confirm</Label>
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={passwords.confirmPassword}
+                      onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={passwordSaving}
+                  variant="outline"
+                  className="w-full border-slate-200 hover:bg-slate-50"
+                >
+                  {passwordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Change Password
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="space-y-6">
+            <Card className={`border-l-4 shadow-sm ${faceAuthEnabled ? 'border-l-emerald-500' : 'border-l-emerald-500'}`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ScanFace className="h-5 w-5 text-emerald-600" />
+                  Biometric Login
+                </CardTitle>
+                <CardDescription>Manage Face ID settings</CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                {faceAuthEnabled ? (
+                  <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/20 text-center">
+                    <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-3">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">Face ID Active</h3>
+                    <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+                      You can now use facial recognition to log in securely.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-800">
+                      {!cameraReady && (
+                        <div className="text-center text-slate-500">
+                          <Camera className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p className="text-xs">Camera is offline</p>
                         </div>
-                        <p className="absolute bottom-4 w-full text-center text-xs text-white/70 bg-black/40 py-1">
-                          Position your face within the frame
-                        </p>
+                      )}
+
+                      <video
+                        ref={videoRef}
+                        className={`absolute inset-0 w-full h-full object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
+                        autoPlay
+                        muted
+                        playsInline
+                      />
+
+                      {cameraReady && !camLoading && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div className="w-48 h-48 border-2 border-emerald-500/50 rounded-lg absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                          </div>
+                          <p className="absolute bottom-4 w-full text-center text-xs text-white/70 bg-black/40 py-1">
+                            Position your face within the frame
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {!cameraReady ? (
+                      <Button
+                        onClick={startCamera}
+                        disabled={!modelsLoaded}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {!modelsLoaded ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading Models...
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="mr-2 h-4 w-4" /> Start Camera
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={stopCamera} className="flex-1">
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={registerFace}
+                          disabled={camLoading}
+                          className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          {camLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Scan & Register
+                        </Button>
                       </div>
                     )}
                   </div>
-
-                  {!cameraReady ? (
-                    <Button
-                      onClick={startCamera}
-                      disabled={!modelsLoaded}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                    >
-                      {!modelsLoaded ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading Models...
-                        </>
-                      ) : (
-                        <>
-                          <Camera className="mr-2 h-4 w-4" /> Start Camera
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={stopCamera} className="flex-1">
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={registerFace}
-                        disabled={camLoading}
-                        className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        {camLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Scan & Register
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* DANGER ZONE */}
-          <Card className="border-red-100 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg text-red-600 dark:text-red-400">
-                <Shield className="h-5 w-5" />
-                Danger Zone
-              </CardTitle>
-              <CardDescription>Irreversible account actions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-600 dark:text-slate-400">
-                  <p className="font-medium text-slate-900 dark:text-slate-200">Delete Account</p>
-                  <p>Permanently remove your data</p>
-                </div>
-                {!showDeleteConfirm ? (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={handleDeleteAccount}
-                    disabled={deleting}
-                  >
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
-                  </Button>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
+            {isPro ? (
+              <Card className="border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Pro Subscription Active
+                  </CardTitle>
+                  <CardDescription>
+                    You’re subscribed to FinTrack Pro 🎉
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-emerald-700 dark:text-emerald-300">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Unlimited transactions</li>
+                    <li>Advanced analytics</li>
+                    <li>Priority support</li>
+                    <li>AI-powered insights</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/30 dark:bg-emerald-900/10 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg text-emerald-600 dark:text-emerald-400">
+                    <Crown className="h-5 w-5" />
+                    Upgrade to Pro
+                  </CardTitle>
+                  <CardDescription>
+                    Unlock advanced features and premium support
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProDialog>
+                    <Button className={`w-full shadow-lg ${bgClass}`}>
+                      Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+                    </Button>
+                  </ProDialog>
+                </CardContent>
+              </Card>
+            )}
+
+
+            <Card className="border-red-100 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg text-red-600 dark:text-red-400">
+                  <Shield className="h-5 w-5" />
+                  Danger Zone
+                </CardTitle>
+                <CardDescription>Irreversible account actions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-slate-600 dark:text-slate-400">
+                    <p className="font-medium text-slate-900 dark:text-slate-200">Delete Account</p>
+                    <p>Permanently remove your data</p>
+                  </div>
+                  <AlertDialog
+                    open={deleteDialogOpen}
+                    onOpenChange={(open) => {
+                      setDeleteDialogOpen(open);
+                      if (!open) {
+                        setDeleteStep("idle");
+                      }
+                    }}
+                  >
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="text-red-600">
+                          Delete account permanently?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-2">
+                          <div>
+                            <p>
+                              This action <strong>cannot be undone</strong>.
+                            </p>
+                            <p>
+                              All your data, transactions, and biometric credentials will be
+                              permanently deleted.
+                            </p>
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+
+                      <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                        {deleteStep === "idle" ? (
+                          <>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              asChild
+                            >
+                              <Button
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setDeleteStep("acknowledged");
+                                }}
+                              >
+                                OK, I understand
+                              </Button>
+                            </AlertDialogAction>
+                          </>
+                        ) : (
+                          <>
+                            <AlertDialogCancel
+                              onClick={() => setDeleteStep("idle")}
+                            >
+                              Go Back
+                            </AlertDialogCancel>
+
+                            <Button
+                              variant="destructive"
+                              onClick={handleDeleteAccount}
+                              disabled={deleting}
+                            >
+                              {deleting ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 mr-2" />
+                              )}
+                              Confirm Delete
+                            </Button>
+                          </>
+                        )}
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
         </div>
-      </div>
-      
-      {/* Inline styles for scanning animation */}
-      <style jsx>{`
+
+        <style jsx>{`
         @keyframes scan {
           0% { top: 0; opacity: 0; }
           10% { opacity: 1; }
@@ -529,6 +680,7 @@ export default function SettingsPage() {
           100% { top: 100%; opacity: 0; }
         }
       `}</style>
+      </div>
     </div>
   );
 }

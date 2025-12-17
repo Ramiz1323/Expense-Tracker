@@ -26,6 +26,68 @@ export async function GET() {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const isAdmin = await isUserAdmin();
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { userId, fullName, role } = await request.json();
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    await connectDB();
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Prevent admin from demoting themselves
+    if (
+      user._id.toString() === currentUser.userId &&
+      role &&
+      role !== "admin"
+    ) {
+      return NextResponse.json(
+        { error: "You cannot change your own admin role" },
+        { status: 400 }
+      );
+    }
+
+    if (fullName !== undefined) user.fullName = fullName;
+    if (role !== undefined) user.role = role;
+
+    await user.save();
+
+    return NextResponse.json({
+      message: "User updated successfully",
+      user: {
+        _id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Update user error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+
 export async function DELETE(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();

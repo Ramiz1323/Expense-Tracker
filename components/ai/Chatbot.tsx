@@ -41,51 +41,12 @@ export function Chatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef(false);
 
-  // 🎙️ Voice assistant hook (YOUR CODE)
-  const { listening, transcript, setTranscript, startListening, speak} =
-    useVoiceAssistant();
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
     if(!transcript.trim()) return;
-
-    handleSend(transcript, true);
-    setTranscript("");
-  }, [transcript]);
-
-  const handleEditedSend = async () => {
-  if (!editedText.trim() || !editingMessageId) return;
-
-  setIsTyping(true);
-
-  // 1️⃣ Update messages: keep everything BEFORE edited message
-  setMessages(prev => {
-    const index = prev.findIndex(m => m.id === editingMessageId);
-    return [
-      ...prev.slice(0, index),
-      {
-        id: editingMessageId,
-        text: editedText,
-        sender: "user",
-        timestamp: new Date(),
-      }
-    ];
-  });
-
-  try {
-    // 2️⃣ Call API again with edited text
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: editedText }),
-    });
-
-  // 🚀 Auto-send when voice transcript arrives
-  useEffect(() => {
-    if (!transcript.trim()) return;
 
     handleSend(transcript, true);
     setTranscript("");
@@ -106,55 +67,6 @@ export function Chatbot() {
   // Otherwise, summarize + default message
   const spokenPart = sentences.slice(0, MAX_SENTENCES).join(". ");
   return `${spokenPart}. Please check the chat for full details.`;
-};
-
-const renderFormattedText = (text: string) => {
-  return text.split("\n").map((line, index) => {
-    // Headings
-    if (line.startsWith("#")) {
-        const level = line.match(/^#+/)?.[0].length || 1;
-        const text = line.replace(/^#+\s*/, "");
-
-        return (
-        <h3 key={index} className={cn("font-semibold mt-3",
-        level === 1 && "text-base",
-        level === 2 && "text-sm",
-        level >= 3 && "text-xs"
-      )}
-    >
-      {text}
-    </h3>
-  );
-}
-
-    // Bullet points
-    if (line.startsWith("- ")) {
-        return (
-          <ul key={index} className="ml-4 list-disc">
-            <li>{line.replace("- ", "")}</li>
-          </ul>
-        );
-    }
-
-    // Bold (**text**)
-    if (line.includes("**")) {
-      const parts = line.split("**");
-      return (
-        <p key={index}>
-          {parts.map((part, i) =>
-            i % 2 === 1 ? <strong key={i}>{part}</strong> : part
-          )}
-        </p>
-      );
-    }
-
-    // Normal text
-    return (
-      <p key={index} className="mt-1">
-        {line}
-      </p>
-    );
-  });
 };
 
 
@@ -273,7 +185,7 @@ const renderFormattedText = (text: string) => {
           </div>
         );
       });
-    };
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -385,5 +297,4 @@ const renderFormattedText = (text: string) => {
         </SheetContent>
       </Sheet>
     </div>
-  );
-}
+)};

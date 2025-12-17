@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider";
 import { Chatbot } from "@/components/ai/Chatbot";
@@ -58,6 +59,7 @@ export default function RootLayout({
           {children}
           <Chatbot />
         </ThemeProvider>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" />
       </body>
     </html>
   );

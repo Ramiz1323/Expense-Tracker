@@ -33,7 +33,8 @@ export async function GET() {
         role: user.role,
         faceAuth: {
           enabled: user.faceAuth?.enabled!!
-        }
+        },
+        isPro: user.isPro
       },
     });
   } catch (error) {

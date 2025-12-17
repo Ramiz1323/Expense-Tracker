@@ -30,8 +30,9 @@ export function Chatbot() {
   const [isTyping, setIsTyping] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editedText, setEditedText] = useState("");
-  const { listening, transcript, setTranscript, startListening } = useVoiceAssistant();
-  const [isPaused, setIsPaused] = useState(false);
+  const { listening, transcript, setTranscript, startListening, speak } = useVoiceAssistant();
+  // const [isPaused, setIsPaused] = useState(false);
+  const [mode, setmode] = useState<"chat" | "voice">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef(false);
 
@@ -40,13 +41,11 @@ export function Chatbot() {
   };
 
   useEffect(() => {
-    if(isPaused) return;
     if(!transcript.trim()) return;
 
-    setInput(transcript);
-    handleSend();
+    handleSend(transcript, true);
     setTranscript("");
-  }, [transcript, isPaused]);
+  }, [transcript]);
 
   const handleEditedSend = async () => {
   if (!editedText.trim() || !editingMessageId) return;
@@ -104,10 +103,29 @@ export function Chatbot() {
   }
 };
 
-  const handleSend = async (overrideText?: string) => {
-    if (isPaused) return;
+  const getSpeechText = (fullText: string) => {
+  const MAX_SENTENCES = 2;
+
+    // Normalize text and split into sentences
+    const sentences = fullText
+      .replace(/\n+/g, " ")
+      .split(". ")
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    // If short response, read it fully (NO default message)
+    if (sentences.length <= MAX_SENTENCES) {
+     return sentences.join(". ");
+    }
+
+    // Long response → summarize + default message
+    const spokenPart = sentences.slice(0, MAX_SENTENCES).join(". ");
+    return `${spokenPart}. Please check the chat for full details.`;
+  };
+
+  const handleSend = async (overrideText?: string, fromVoice = false) => {
     const messageText = overrideText ?? input.trim();
-    if (!input.trim()) return;
+    if (!messageText) return;
     abortRef.current = false;
 
     const userMessage: Message = {
@@ -124,6 +142,7 @@ export function Chatbot() {
       }
       return [...prev, userMessage];
     });
+    
     scrollToBottom();
     setInput("");
     setIsTyping(true);
@@ -151,6 +170,11 @@ export function Chatbot() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
+      if(fromVoice){
+        const speechText = getSpeechText(botMessage.text);
+        speak(speechText);
+      }
+      scrollToBottom();
     } catch (error) {
       console.error("Chatbot error:", error);
       const errorMessage: Message = {
@@ -164,6 +188,62 @@ export function Chatbot() {
       setIsTyping(false);
     }
   };
+  const renderFormattedText = (text: string) => {
+    const renderInlineBold = (line: string) => {
+      const parts = line.split("**");
+      return parts.map((part, i) => 
+        i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+      );
+    };
+    return text.split("\n").map((line, index) => {
+      if (!line.trim()){
+        return <div key={index} className="h-2"/>;
+        }
+
+        // Headings #, ##, ###
+        if (line.startsWith("#")){
+          const level = line.match(/^#+/)?.[0].length || 1;
+          const content = line.replace(/^#+\s*/,"");
+          
+          return(
+            <h3
+              key = {index}
+              className={cn(
+                "font-semibold mt-3",
+                level === 1 && "text-base",
+                level === 2 && "text-sm",
+                level >= 3 && "text-xs",
+              )}
+            >
+              {renderInlineBold(content)}
+            </h3>
+          );
+        }
+
+        // Numbered list (1. 2. 3.)
+        if (/^\d+\.\s/.test(line)) {
+          return (
+            <p key={index} className="ml-4">
+              {renderInlineBold(line)}
+            </p>
+          );
+        }
+        // Bullet list (- item)
+        if (line.startsWith("- ")) {
+          return (
+           <li key={index} className="ml-4 list-disc">
+              {renderInlineBold(line.replace("- ",""))}
+          </li>
+          );
+        }
+        // Normal text
+        return (
+          <div key={index} className="mt-1">
+            {renderInlineBold(line)}
+          </div>
+        );
+      });
+    };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -192,19 +272,7 @@ export function Chatbot() {
                 <div className="flex items-center gap-2">
                   <Bot className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   FinTrack Assistant
-                  {isPaused && (
-                    <span className="ml-2 text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-400">
-                    Paused
-                    </span>)}
                 </div>
-                <Button
-                size='sm'
-                variant="ghost"
-                onClick={() => setIsPaused(prev => !prev)}
-                className="text-xs"
-                >
-                {isPaused ? 'Resume' : 'Pause'}
-                </Button>
               </SheetTitle>
             </SheetHeader>
 
@@ -244,7 +312,7 @@ export function Chatbot() {
                             </Button>
                         </div>
                     ) : (
-                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>     
+                        <div className="text-sm whitespace-pre-wrap">{renderFormattedText(message.text)}</div>     
                     )}
                     <span className="text-xs opacity-70 mt-1 block">
                       {message.timestamp.toLocaleTimeString([], {
@@ -294,7 +362,6 @@ export function Chatbot() {
                     size="icon"
                     variant="ghost"
                     onClick={startListening}
-                    disabled={isPaused}
                     aria-label="voice Input"
                 >
                     {listening ? <MicOff className="h-4 w-4" /> :(<Mic className="h-4 w-4" />

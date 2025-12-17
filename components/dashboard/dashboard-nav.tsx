@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, X, Banknote, CreditCard } from 'lucide-react';
+// 1. Added 'Lock' to the imports below
+import { LogOut, LayoutDashboard, Wallet, Settings, Users, Menu, Banknote, CreditCard, Lock } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useRouter } from 'next/navigation';
@@ -49,6 +50,8 @@ export function DashboardNav() {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/transaction", label: "Transactions", icon: Wallet },
+    // 2. Added the Impulse Vault link here
+    { href: "/dashboard/vault", label: "Impulse Vault", icon: Lock },
     { href: "/dashboard/investment", label: "Investments", icon: Banknote },
     { href: "/dashboard/subscriptions", label: "Subscriptions", icon: CreditCard },
     { href: "/dashboard/groups", label: "Split Bills", icon: Users },
@@ -135,8 +138,6 @@ export function DashboardNav() {
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
               <SheetTitle className="sr-only">Mobile Navigation Menu</SheetTitle>
-
-              {/* 2. Added SheetDescription here (hidden from view but available to screen readers) */}
               <SheetDescription className="sr-only">
                 Main navigation menu for mobile devices
               </SheetDescription>

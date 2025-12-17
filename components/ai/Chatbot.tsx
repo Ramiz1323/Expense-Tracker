@@ -33,7 +33,13 @@ export function Chatbot() {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editedText, setEditedText] = useState("");
+  const { listening, transcript, setTranscript, startListening, speak } = useVoiceAssistant();
+  // const [isPaused, setIsPaused] = useState(false);
+  const [mode, setmode] = useState<"chat" | "voice">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef(false);
 
   // 🎙️ Voice assistant hook (YOUR CODE)
   const { listening, transcript, setTranscript, startListening, speak} =
@@ -44,8 +50,38 @@ export function Chatbot() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
+    if(!transcript.trim()) return;
+
+    handleSend(transcript, true);
+    setTranscript("");
+  }, [transcript]);
+
+  const handleEditedSend = async () => {
+  if (!editedText.trim() || !editingMessageId) return;
+
+  setIsTyping(true);
+
+  // 1️⃣ Update messages: keep everything BEFORE edited message
+  setMessages(prev => {
+    const index = prev.findIndex(m => m.id === editingMessageId);
+    return [
+      ...prev.slice(0, index),
+      {
+        id: editingMessageId,
+        text: editedText,
+        sender: "user",
+        timestamp: new Date(),
+      }
+    ];
+  });
+
+  try {
+    // 2️⃣ Call API again with edited text
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: editedText }),
+    });
 
   // 🚀 Auto-send when voice transcript arrives
   useEffect(() => {
@@ -134,7 +170,15 @@ const renderFormattedText = (text: string) => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      if (editingMessageId) {
+        const index = prev.findIndex((msg) => msg.id === editingMessageId);
+        return[...prev.slice(0, index), userMessage];
+      }
+      return [...prev, userMessage];
+    });
+    
+    scrollToBottom();
     setInput("");
     setIsTyping(true);
 
@@ -146,6 +190,7 @@ const renderFormattedText = (text: string) => {
       });
 
       const data = await response.json();
+      if (abortRef.current) return;
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -173,6 +218,62 @@ const renderFormattedText = (text: string) => {
       setIsTyping(false);
     }
   };
+  const renderFormattedText = (text: string) => {
+    const renderInlineBold = (line: string) => {
+      const parts = line.split("**");
+      return parts.map((part, i) => 
+        i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+      );
+    };
+    return text.split("\n").map((line, index) => {
+      if (!line.trim()){
+        return <div key={index} className="h-2"/>;
+        }
+
+        // Headings #, ##, ###
+        if (line.startsWith("#")){
+          const level = line.match(/^#+/)?.[0].length || 1;
+          const content = line.replace(/^#+\s*/,"");
+          
+          return(
+            <h3
+              key = {index}
+              className={cn(
+                "font-semibold mt-3",
+                level === 1 && "text-base",
+                level === 2 && "text-sm",
+                level >= 3 && "text-xs",
+              )}
+            >
+              {renderInlineBold(content)}
+            </h3>
+          );
+        }
+
+        // Numbered list (1. 2. 3.)
+        if (/^\d+\.\s/.test(line)) {
+          return (
+            <p key={index} className="ml-4">
+              {renderInlineBold(line)}
+            </p>
+          );
+        }
+        // Bullet list (- item)
+        if (line.startsWith("- ")) {
+          return (
+           <li key={index} className="ml-4 list-disc">
+              {renderInlineBold(line.replace("- ",""))}
+          </li>
+          );
+        }
+        // Normal text
+        return (
+          <div key={index} className="mt-1">
+            {renderInlineBold(line)}
+          </div>
+        );
+      });
+    };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

@@ -97,15 +97,22 @@ export function DashboardNav() {
         </p>
       </div>
 
+
       {/* Pro Banner */}
-      {showProBanner && <div className="p-4">
-        <ProDialog>
-          <Button className={`w-full shadow-lg ${bgClass}`}>
-            Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+      <div className="p-4">
+        {showProBanner ? (
+          <ProDialog>
+            <Button className={`w-full shadow-lg ${bgClass}`}>
+              Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+            </Button>
+          </ProDialog>
+        ) : (
+          <Button className={`w-full shadow-lg ${bgClass} cursor-default relative ring-2 ring-yellow-400/60 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 shadow-[0_0_12px_rgba(234,179,8,0.35)]`}>
+            Pro Active <Crown className="h-4 w-4 ml-2 text-yellow-500" />
           </Button>
-        </ProDialog>
+        )}
       </div>
-      }
+
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
@@ -158,8 +165,40 @@ export function DashboardNav() {
           <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">
             FinTrack
           </h1>
-          <ProDialog><Button size="sm" className={`shadow-lg ${bgClass}`}>Go Pro <Crown className="h-4 w-4 ml-2 text-yellow-500" /></Button></ProDialog>
+
+          {showProBanner ? (
+            <ProDialog>
+              <Button
+                size="sm"
+                className={`shadow-lg ${bgClass} ml-4`}
+              >
+                Go Pro
+                <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+              </Button>
+            </ProDialog>
+          ) : (
+            <Button
+              size="sm"
+              className={`
+                shadow-lg
+                ${bgClass}
+                cursor-default
+                relative
+                ring-2
+                ring-yellow-400/60
+                ring-offset-2
+                ring-offset-white
+                dark:ring-offset-slate-900
+                shadow-[0_0_10px_rgba(234,179,8,0.35)]
+                ml-4
+              `}
+            >
+              Pro Active
+              <Crown className="h-4 w-4 ml-2 text-yellow-500" />
+            </Button>
+          )}
         </div>
+
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>

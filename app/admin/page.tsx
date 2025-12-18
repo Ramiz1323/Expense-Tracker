@@ -164,6 +164,7 @@ export default function AdminPage() {
     totalTransactions: 0,
     totalIncome: 0,
     totalExpenses: 0,
+    totalProUsers: 0,
   });
 
   useEffect(() => {
@@ -285,7 +286,7 @@ export default function AdminPage() {
             },
             {
               label: "Active Premium users",
-              value: "merge pr & khud kar lena yeh",
+              value: stats.totalProUsers,
               icon: <Users />,
             }
           ].map((s, i) => (

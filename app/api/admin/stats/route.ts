@@ -18,8 +18,11 @@ export async function GET() {
 
     await connectDB();
 
-    const totalUsers = await User.countDocuments();
+    const users = await User.find();
     
+    const totalUsers = users.length;
+    const totalProUsers = users.filter(u => u.isPro = true).length;
+
     const transactions = await Transaction.find().lean();
     const totalTransactions = transactions.length;
     
@@ -36,6 +39,7 @@ export async function GET() {
       totalTransactions,
       totalIncome,
       totalExpenses,
+      totalProUsers
     });
   } catch (error) {
     console.error('Get admin stats error:', error);

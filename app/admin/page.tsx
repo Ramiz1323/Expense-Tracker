@@ -363,7 +363,7 @@ export default function AdminPage() {
                     <Badge
                       variant={u.role === "admin" ? "default" : "secondary"}
                     >
-                      {u.role}
+                      {u.role === "admin" ? "Admin" : "User"}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
@@ -426,7 +426,7 @@ export default function AdminPage() {
                     <Badge
                       variant={u.role === "admin" ? "default" : "secondary"}
                     >
-                      {u.role}
+                      {u.role === "admin" ? "Admin" : "User"}
                     </Badge>
                   </div>
                 </div>
@@ -570,10 +570,10 @@ export default function AdminPage() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Badge>{viewUser.user.role}</Badge>
-        <span className="text-xs text-slate-500">
+        <Badge>{viewUser.user.role == "admin" ? "Admin" : "User"}</Badge>
+        <Badge className="text-xs">
           Joined {new Date(viewUser.user.createdAt).toLocaleDateString()}
-        </span>
+        </Badge>
       </div>
     </div>
 

@@ -55,6 +55,20 @@ export function DashboardNav() {
     };
 
     checkUserRole();
+    // Listen for pro status changes to update banner live
+    const onProStatusChanged = (e: any) => {
+      const nextIsPro = Boolean(e?.detail?.isPro);
+      setShowProBanner(!nextIsPro);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pro-status-changed', onProStatusChanged as EventListener);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pro-status-changed', onProStatusChanged as EventListener);
+      }
+    };
   }, []);
 
   const handleLogout = async () => {

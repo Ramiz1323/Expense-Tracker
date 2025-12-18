@@ -85,6 +85,7 @@ export default function SettingsPage() {
 
   // Pro
   const [isPro, setIsPro] = useState(false);
+  const [cancelingPro, setCancelingPro] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -286,6 +287,26 @@ export default function SettingsPage() {
       toast.error("Failed to register face data");
     } finally {
       setCamLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      setCancelingPro(true);
+      const res = await fetch('/api/payment/cancel', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Failed to cancel subscription' }));
+        throw new Error(data.error || 'Failed to cancel subscription');
+      }
+      setIsPro(false);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pro-status-changed', { detail: { isPro: false } }));
+      }
+      toast.success('Subscription cancelled. You can Go Pro anytime.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to cancel subscription');
+    } finally {
+      setCancelingPro(false);
     }
   };
 
@@ -549,6 +570,43 @@ export default function SettingsPage() {
                     <li>Priority support</li>
                     <li>AI-powered insights</li>
                   </ul>
+                  <div className="mt-4">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" disabled={cancelingPro}>
+                          {cancelingPro ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cancelling...
+                            </>
+                          ) : (
+                            <>Cancel Subscription</>
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel Pro subscription?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will immediately remove Pro benefits. You can upgrade again anytime.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep Pro</AlertDialogCancel>
+                          <AlertDialogAction asChild>
+                            <Button onClick={handleCancelSubscription} variant="destructive" disabled={cancelingPro}>
+                              {cancelingPro ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cancelling...
+                                </>
+                              ) : (
+                                <>Confirm Cancel</>
+                              )}
+                            </Button>
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </CardContent>
               </Card>
             ) : (

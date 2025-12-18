@@ -19,7 +19,8 @@ import {
   Trash2,
   Search,
   SquarePen,
-  Eye
+  Eye,
+  Crown
 } from "lucide-react";
 import {
   Dialog,
@@ -66,6 +67,7 @@ interface User {
   fullName: string;
   role: string;
   createdAt: string;
+  isPro: boolean; // Added isPro field
 }
 
 function Stat({ label, value }: { label: string; value: any }) {
@@ -164,6 +166,7 @@ export default function AdminPage() {
     totalTransactions: 0,
     totalIncome: 0,
     totalExpenses: 0,
+    activePremiumUsers: 0,
   });
 
   useEffect(() => {
@@ -285,8 +288,8 @@ export default function AdminPage() {
             },
             {
               label: "Active Premium users",
-              value: "merge pr & khud kar lena yeh",
-              icon: <Users />,
+              value: stats.activePremiumUsers,
+              icon: <Crown />,
             }
           ].map((s, i) => (
             <div
@@ -333,6 +336,7 @@ export default function AdminPage() {
               <tr>
                 <th className="px-4 py-3 text-left font-medium">User</th>
                 <th className="px-4 py-3 text-left font-medium">Role</th>
+                <th className="px-4 py-3 text-left font-medium">Plan</th>
                 <th className="px-4 py-3 text-left font-medium">Joined</th>
                 <th className="px-4 py-3 text-center font-medium">Action</th>
               </tr>
@@ -364,6 +368,16 @@ export default function AdminPage() {
                     >
                       {u.role}
                     </Badge>
+                  </td>
+                  {/* NEW PLAN COLUMN */}
+                  <td className="px-4 py-3">
+                    {u.isPro ? (
+                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 hover:from-amber-600 hover:to-orange-600">
+                         <Crown className="w-3 h-3 mr-1" /> PRO
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-slate-500">Free</Badge>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
                     {new Date(u.createdAt).toLocaleDateString()}
@@ -417,36 +431,46 @@ export default function AdminPage() {
             >
               <div className="flex justify-between">
                 <div>
-                  <p className="font-semibold">
-                    {u.fullName || "Unnamed"}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">
+                      {u.fullName || "Unnamed"}
+                    </p>
+                    {u.isPro && (
+                      <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0 h-5">PRO</Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500">{u.email}</p>
-                  <div className="mt-2">
+                  <div className="mt-2 flex gap-2">
                     <Badge
                       variant={u.role === "admin" ? "default" : "secondary"}
                     >
                       {u.role}
                     </Badge>
+                    {!u.isPro && (
+                      <Badge variant="outline" className="text-slate-400">Free</Badge>
+                    )}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => openEdit(u)}
-                  className="text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                >
-                  <SquarePen className="w-4 h-4" />
-                </Button>
+                <div className="flex flex-col gap-1">
+                    <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openEdit(u)}
+                    className="text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                    >
+                    <SquarePen className="w-4 h-4" />
+                    </Button>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={u.role === "admin"}
-                  onClick={() => handleDelete(u._id)}
-                  className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                    <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={u.role === "admin"}
+                    onClick={() => handleDelete(u._id)}
+                    className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                    <Trash2 className="w-4 h-4" />
+                    </Button>
+                </div>
               </div>
 
               <p className="text-xs text-slate-400 mt-3">
@@ -570,6 +594,7 @@ export default function AdminPage() {
 
       <div className="flex items-center gap-3">
         <Badge>{viewUser.user.role}</Badge>
+        {viewUser.user.isPro && <Badge className="bg-amber-500">PRO</Badge>}
         <span className="text-xs text-slate-500">
           Joined {new Date(viewUser.user.createdAt).toLocaleDateString()}
         </span>

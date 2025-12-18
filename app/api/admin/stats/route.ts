@@ -19,6 +19,8 @@ export async function GET() {
     await connectDB();
 
     const totalUsers = await User.countDocuments();
+    // Count users who have the isPro flag set to true
+    const activePremiumUsers = await User.countDocuments({ isPro: true });
     
     const transactions = await Transaction.find().lean();
     const totalTransactions = transactions.length;
@@ -33,6 +35,7 @@ export async function GET() {
 
     return NextResponse.json({
       totalUsers,
+      activePremiumUsers, // Return the new stat
       totalTransactions,
       totalIncome,
       totalExpenses,

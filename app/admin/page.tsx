@@ -372,7 +372,7 @@ export default function AdminPage() {
                   {/* NEW PLAN COLUMN */}
                   <td className="px-4 py-3">
                     {u.isPro ? (
-                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 hover:from-amber-600 hover:to-orange-600">
+                      <Badge className="bg-linear-to-r from-amber-500 to-orange-500 text-white border-0 hover:from-amber-600 hover:to-orange-600">
                          <Crown className="w-3 h-3 mr-1" /> PRO
                       </Badge>
                     ) : (

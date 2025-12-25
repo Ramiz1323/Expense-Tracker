@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongodb/db';
 import { User } from '@/lib/mongodb/models/User';
-import { Otp } from '@/lib/mongodb/models/Otp'; // Import OTP model
+import { Otp } from '@/lib/mongodb/models/Otp'; 
 import { hashPassword } from '@/lib/auth/password';
 import { generateToken } from '@/lib/auth/jwt';
 import { setAuthToken } from '@/lib/auth/session';
@@ -12,26 +12,40 @@ export async function POST(request: NextRequest) {
 
     const { email, password, fullName, phone, otp } = await request.json();
 
-    // 1. Validate Input
+    // 1. Validate Required Fields
     if (!email || !password || !fullName || !phone || !otp) {
       return NextResponse.json(
-        { error: 'All fields (including OTP) are required' },
+        { error: 'All fields (including confirmation code) are required' },
         { status: 400 }
       );
     }
 
-    // 2. Verify OTP
-    const validOtp = await Otp.findOne({ phone, code: otp });
+    // 2. Server-side Email Format Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Verify Email Code (OTP)
+    const validOtp = await Otp.findOne({ 
+      email: email.toLowerCase().trim(), 
+      code: otp 
+    });
+    
     if (!validOtp) {
       return NextResponse.json(
-        { error: 'Invalid or expired OTP' },
+        { error: 'Invalid or expired confirmation code' },
         { status: 400 }
       );
     }
+    
 
-    // 3. Check existing user
+    // 4. Check for existing user (Email or Phone)
     const existingUser = await User.findOne({ 
-      $or: [{ email: email.toLowerCase() }, { phone }] 
+      $or: [{ email: email.toLowerCase().trim() }, { phone }] 
     });
     
     if (existingUser) {
@@ -41,21 +55,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Create User
+    // 5. Create User
     const hashedPassword = await hashPassword(password);
 
     const user = await User.create({
-      email: email.toLowerCase(),
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
       fullName,
       phone,
       role: 'user',
     });
 
-    // 5. Cleanup OTP
+    // 6. Cleanup used code
     await Otp.deleteOne({ _id: validOtp._id });
 
-    // 6. Login User
+    // 7. Generate Session Token and Login
     const token = generateToken(user._id.toString(), user.email, user.role, user.fullName);
     await setAuthToken(token);
 

@@ -24,9 +24,16 @@ export default function SignUpPage() {
   
   const router = useRouter();
 
-  const handleSendOtp = async () => {
-    if (!phone) {
-      setError("Please enter a phone number first");
+  // Helper function for email validation
+  const validateEmail = (email: string) => {
+    return String(email)
+      .toLowerCase()
+      .match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  };
+
+  const handleSendEmailCode = async () => {
+    if (!email || !validateEmail(email)) {
+      setError("Please enter a valid email address first");
       return;
     }
     setOtpLoading(true);
@@ -36,16 +43,17 @@ export default function SignUpPage() {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
       });
       
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send OTP");
+      if (!res.ok) throw new Error(data.error || "Failed to send code");
       
       setOtpSent(true);
-      alert(`OTP Sent! Check your VS Code terminal for the code.`);
+      // Removed VS Code terminal reference
+      alert(`Confirmation code sent! Please check your email inbox.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error sending OTP");
+      setError(err instanceof Error ? err.message : "Error sending code");
     } finally {
       setOtpLoading(false);
     }
@@ -55,7 +63,7 @@ export default function SignUpPage() {
     e.preventDefault();
     
     if (!otpSent) {
-      setError("Please verify your phone number first");
+      setError("Please verify your email address first");
       return;
     }
 
@@ -67,7 +75,7 @@ export default function SignUpPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
+          email: email.toLowerCase().trim(),
           password,
           fullName,
           phone,
@@ -118,44 +126,31 @@ export default function SignUpPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            {/* PHONE & OTP SECTION */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="email">Email Address</Label>
               <div className="flex gap-2">
                 <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="9876543210"
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
                   required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  disabled={otpSent} 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={otpSent}
                 />
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={handleSendOtp}
+                  onClick={handleSendEmailCode}
                   disabled={otpSent || otpLoading}
                 >
-                  {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (otpSent ? "Sent" : "Send OTP")}
+                  {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (otpSent ? "Sent" : "Send Code")}
                 </Button>
               </div>
             </div>
 
             {otpSent && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label htmlFor="otp">Enter OTP</Label>
+                <Label htmlFor="otp">Confirmation Code</Label>
                 <Input
                   id="otp"
                   type="text"
@@ -166,10 +161,22 @@ export default function SignUpPage() {
                   maxLength={6}
                 />
                 <p className="text-xs text-muted-foreground">
-                  (Check your terminal for the mock code)
+                  (Please enter the 6-digit code sent to your email)
                 </p>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="9876543210"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
